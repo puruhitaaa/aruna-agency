@@ -24,6 +24,6 @@ export const config = {
      * - favicon.ico, *.svg, *.png, *.jpg, *.jpeg, *.gif, *.webp (static assets)
      * - (public) route group pages
      */
-    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|\\(public\\)).*)",
+    "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|\\(public\\)|$).*)",
   ],
 }
