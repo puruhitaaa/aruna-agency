@@ -1,36 +1,107 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🚀 Next.js + Elysia + Better-Auth + Drizzle Starter
 
-## Getting Started
+Welcome to the **ultimate modern web development starter kit**! This project is a powerhouse combination of the fastest, most ergonomic, and type-safe tools available today. Built for speed, scalability, and developer experience.
 
-First, run the development server:
+## ⚡ Tech Stack
+
+This project leverages a cutting-edge stack to give you the best development experience:
+
+- **[Next.js 16](https://nextjs.org/)**: The React Framework for the Web (App Router).
+- **[ElysiaJS](https://elysiajs.com/)**: Ergonomic Framework for Humans. High-performance backend.
+- **[Better-Auth](https://better-auth.com/)**: The most comprehensive authentication library for TypeScript.
+- **[Drizzle ORM](https://orm.drizzle.team/)**: Lightweight and type-safe ORM for PostgreSQL.
+- **[Tailwind CSS v4](https://tailwindcss.com/)**: A utility-first CSS framework for rapid UI development.
+- **[Biome](https://biomejs.dev/)**: A fast formatter and linter for the modern web.
+- **[TypeScript](https://www.typescriptlang.org/)**: Strongly typed JavaScript for fewer bugs.
+
+## 🌟 Features
+
+- **Full-Stack Type Safety**: End-to-end type safety from your database to your frontend.
+- **Modern Auth**: Secure and flexible authentication with Better-Auth.
+- **High Performance**: Powered by Next.js and Elysia for blazing fast responses.
+- **Developer Experience**: Biome for instant linting/formatting and Drizzle Kit for easy database management.
+- **Ready-to-Scale**: Built on top of PostgreSQL and robust architecture.
+
+## 🛠️ Getting Started
+
+Follow these steps to get your project up and running in no time.
+
+### 1. Clone & Install
+
+```bash
+git clone <your-repo-url>
+cd nextbet-shadlysia
+npm install
+# or
+pnpm install
+# or
+bun install
+```
+
+### 2. Environment Setup
+
+Copy the example environment file and configure your secrets:
+
+```bash
+cp .env.example .env
+```
+
+Update `.env` with your database credentials and other necessary secrets.
+
+### 3. Database Setup
+
+Initialize your database schema using Drizzle Kit:
+
+```bash
+# Generate migrations
+npm run db:generate
+
+# Push schema to the database
+npm run db:push
+```
+
+### 4. Run Development Server
+
+Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📜 Available Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `npm run dev`: Starts the Next.js development server.
+- `npm run build`: Builds the application for production.
+- `npm run start`: Starts the production server.
+- `npm run lint`: Checks for linting errors using Biome.
+- `npm run format`: Formats the code using Biome.
+- `npm run db:generate`: Generates Drizzle migrations.
+- `npm run db:migrate`: Runs Drizzle migrations.
+- `npm run db:push`: Pushes schema changes directly to the database (prototyping).
+- `npm run ba:generate`: Generates Better-Auth schema/client code.
 
-## Learn More
+## 📂 Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+├── src
+│   ├── app          # Next.js App Router pages and layouts
+│   ├── server       # Backend logic (Elysia, Drizzle, Better-Auth)
+│   │   ├── better-auth # Auth configuration
+│   │   ├── db       # Database schema and connection
+│   │   └── index.ts # Elysia app entry point
+│   ├── lib          # Shared utilities
+│   └── proxy.ts     # Proxy configuration
+├── drizzle          # Drizzle migrations
+├── public           # Static assets
+└── ...config files
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🤝 Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Deploy on Vercel
+## 📄 License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project is open source and available under the [MIT License](LICENSE).
