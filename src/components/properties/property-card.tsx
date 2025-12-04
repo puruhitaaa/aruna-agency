@@ -4,6 +4,7 @@ import { Bath, Bed, MapPin, Square } from "lucide-react"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
 import { Property } from "@/lib/data"
+import { useRouter } from "next/navigation"
 
 interface PropertyCardProps {
   property: Property
@@ -16,6 +17,10 @@ export function PropertyCard({
   className,
   aspectRatio = "aspect-[4/3]",
 }: PropertyCardProps) {
+  const router = useRouter()
+
+  const handleDetails = () => void router.push(`/properties/${property.id}`)
+
   return (
     <div className={cn("flex flex-col gap-4 group", className)}>
       <div
@@ -34,7 +39,10 @@ export function PropertyCard({
 
         {/* Details Overlay */}
         <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
-          <div className='w-24 h-24 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white font-medium cursor-pointer transform scale-90 group-hover:scale-100 transition-transform duration-300'>
+          <div
+            className='w-24 h-24 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white font-medium cursor-pointer transform scale-90 group-hover:scale-100 transition-transform duration-300'
+            onClick={handleDetails}
+          >
             Details
           </div>
         </div>

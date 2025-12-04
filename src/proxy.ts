@@ -22,8 +22,8 @@ export const config = {
      * - _next/static (Next.js static files)
      * - _next/image (Next.js image optimization files)
      * - favicon.ico, *.svg, *.png, *.jpg, *.jpeg, *.gif, *.webp (static assets)
-     * - / (root page)
-     * - /properties (properties page)
+     * - / (root)
+     * - /properties (public properties page)
      */
     "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|properties|$).*)",
   ],
