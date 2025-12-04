@@ -34,7 +34,11 @@ export default async function PropertyDetailPage({
       <Navbar />
 
       <div className='max-w-[1400px] mx-auto px-4 md:px-6 py-8 flex flex-col gap-8 md:gap-12'>
-        <PropertyGallery images={property.images} title={property.title} />
+        <PropertyGallery
+          images={property.images}
+          videos={property.videos}
+          title={property.title}
+        />
 
         <div className='grid grid-cols-1 lg:grid-cols-3 gap-12'>
           <div className='lg:col-span-2'>

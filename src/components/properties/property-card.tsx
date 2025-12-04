@@ -30,7 +30,7 @@ export function PropertyCard({
         )}
       >
         <Image
-          src={property.image}
+          src={property.image.src}
           alt={property.title}
           fill
           className='object-cover transition-transform duration-700 group-hover:scale-105'

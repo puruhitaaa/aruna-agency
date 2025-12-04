@@ -5,6 +5,13 @@ export interface Agent {
   email: string
 }
 
+export interface PropertyImage {
+  src: string
+  width: number
+  height: number
+  alt?: string
+}
+
 export interface Property {
   id: string
   title: string
@@ -15,8 +22,9 @@ export interface Property {
   price: number
   description: string
   amenities: string[]
-  images: string[]
-  image: string // Main image for card
+  images: PropertyImage[]
+  videos?: string[]
+  image: PropertyImage // Main image for card
   agent: Agent
   className?: string
   aspectRatio?: string
@@ -42,12 +50,30 @@ export const properties: Property[] = [
       "Gym",
     ],
     images: [
-      "https://images.unsplash.com/photo-1600596542815-2495db9dc2c3?q=80&w=2070&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?q=80&w=2070&auto=format&fit=crop",
+      {
+        src: "https://images.unsplash.com/photo-1600596542815-2495db9dc2c3?q=80&w=2070&auto=format&fit=crop",
+        width: 2070,
+        height: 1380,
+      },
+      {
+        src: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop",
+        width: 2053,
+        height: 1369,
+      },
+      {
+        src: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?q=80&w=2070&auto=format&fit=crop",
+        width: 2070,
+        height: 1380,
+      },
     ],
-    image:
-      "https://images.unsplash.com/photo-1600596542815-2495db9dc2c3?q=80&w=2070&auto=format&fit=crop",
+    videos: [
+      "https://videos.pexels.com/video-files/3209211/3209211-uhd_2560_1440_25fps.mp4",
+    ],
+    image: {
+      src: "https://images.unsplash.com/photo-1600596542815-2495db9dc2c3?q=80&w=2070&auto=format&fit=crop",
+      width: 2070,
+      height: 1380,
+    },
     agent: {
       name: "Sarah Tan",
       image:
@@ -70,10 +96,17 @@ export const properties: Property[] = [
       "Experience the tranquility of Yogyakarta at Arjuna Hills Estate. This property boasts traditional Javanese architecture mixed with modern comforts, offering panoramic views of the surrounding hills.",
     amenities: ["Mountain View", "Terrace", "Traditional Joglo", "Wi-Fi"],
     images: [
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
+      {
+        src: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
+        width: 2070,
+        height: 1380,
+      },
     ],
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
+    image: {
+      src: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
+      width: 2070,
+      height: 1380,
+    },
     agent: {
       name: "Budi Santoso",
       image:
@@ -96,10 +129,17 @@ export const properties: Property[] = [
       "A contemporary masterpiece in Semarang Selatan. Nirwana Residence offers sleek design, premium finishes, and a prime location near the city center.",
     amenities: ["City View", "Elevator", "Rooftop Deck", "Fitness Center"],
     images: [
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop",
+      {
+        src: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop",
+        width: 2070,
+        height: 1380,
+      },
     ],
-    image:
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop",
+    image: {
+      src: "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop",
+      width: 2070,
+      height: 1380,
+    },
     agent: {
       name: "Linda Wijaya",
       image:
@@ -127,10 +167,17 @@ export const properties: Property[] = [
       "Quiet Neighborhood",
     ],
     images: [
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop",
+      {
+        src: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop",
+        width: 2053,
+        height: 1369,
+      },
     ],
-    image:
-      "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop",
+    image: {
+      src: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?q=80&w=2053&auto=format&fit=crop",
+      width: 2053,
+      height: 1369,
+    },
     agent: {
       name: "Sarah Tan",
       image:
@@ -158,10 +205,17 @@ export const properties: Property[] = [
       "High Security",
     ],
     images: [
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?q=80&w=2070&auto=format&fit=crop",
+      {
+        src: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?q=80&w=2070&auto=format&fit=crop",
+        width: 2070,
+        height: 1380,
+      },
     ],
-    image:
-      "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?q=80&w=2070&auto=format&fit=crop",
+    image: {
+      src: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?q=80&w=2070&auto=format&fit=crop",
+      width: 2070,
+      height: 1380,
+    },
     agent: {
       name: "Budi Santoso",
       image:
@@ -189,10 +243,17 @@ export const properties: Property[] = [
       "Balcony",
     ],
     images: [
-      "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?q=80&w=1984&auto=format&fit=crop",
+      {
+        src: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?q=80&w=1984&auto=format&fit=crop",
+        width: 1984,
+        height: 1323,
+      },
     ],
-    image:
-      "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?q=80&w=1984&auto=format&fit=crop",
+    image: {
+      src: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?q=80&w=1984&auto=format&fit=crop",
+      width: 1984,
+      height: 1323,
+    },
     agent: {
       name: "Linda Wijaya",
       image:
