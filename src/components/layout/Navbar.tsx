@@ -2,8 +2,10 @@
 
 import { Building2, Menu } from "lucide-react"
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetContent,
@@ -13,24 +15,67 @@ import {
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
+  const pathname = usePathname()
+
+  const isActive = (path: string) => pathname === path
 
   return (
     <nav className='flex items-center justify-between px-6 py-6 max-w-[1400px] mx-auto w-full bg-background'>
       <div className='flex items-center gap-12'>
         <div className='hidden lg:flex items-center gap-8 text-sm font-medium text-muted-foreground/80'>
-          <Link href='#' className='text-foreground font-semibold'>
+          <Link
+            href='/'
+            className={cn(
+              "transition-colors",
+              isActive("/")
+                ? "text-foreground font-semibold"
+                : "hover:text-foreground"
+            )}
+          >
             Home
           </Link>
-          <Link href='#' className='hover:text-foreground transition-colors'>
+          <Link
+            href='/properties'
+            className={cn(
+              "transition-colors",
+              isActive("/properties")
+                ? "text-foreground font-semibold"
+                : "hover:text-foreground"
+            )}
+          >
             Properties
           </Link>
-          <Link href='#' className='hover:text-foreground transition-colors'>
+          <Link
+            href='#'
+            className={cn(
+              "transition-colors",
+              isActive("/projects")
+                ? "text-foreground font-semibold"
+                : "hover:text-foreground"
+            )}
+          >
             Our Projects
           </Link>
-          <Link href='#' className='hover:text-foreground transition-colors'>
+          <Link
+            href='#'
+            className={cn(
+              "transition-colors",
+              isActive("/faqs")
+                ? "text-foreground font-semibold"
+                : "hover:text-foreground"
+            )}
+          >
             FAQs
           </Link>
-          <Link href='#' className='hover:text-foreground transition-colors'>
+          <Link
+            href='#'
+            className={cn(
+              "transition-colors",
+              isActive("/about")
+                ? "text-foreground font-semibold"
+                : "hover:text-foreground"
+            )}
+          >
             About Us
           </Link>
         </div>
@@ -69,37 +114,62 @@ export function Navbar() {
             <div className='flex flex-col gap-8 mt-8 p-8'>
               <div className='flex flex-col gap-4 text-lg font-medium'>
                 <Link
-                  href='#'
+                  href='/'
                   onClick={() => setIsOpen(false)}
-                  className='text-foreground font-semibold'
+                  className={cn(
+                    "transition-colors",
+                    isActive("/")
+                      ? "text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
                   Home
                 </Link>
                 <Link
-                  href='#'
+                  href='/properties'
                   onClick={() => setIsOpen(false)}
-                  className='text-muted-foreground hover:text-foreground transition-colors'
+                  className={cn(
+                    "transition-colors",
+                    isActive("/properties")
+                      ? "text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
                   Properties
                 </Link>
                 <Link
                   href='#'
                   onClick={() => setIsOpen(false)}
-                  className='text-muted-foreground hover:text-foreground transition-colors'
+                  className={cn(
+                    "transition-colors",
+                    isActive("/projects")
+                      ? "text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
                   Our Projects
                 </Link>
                 <Link
                   href='#'
                   onClick={() => setIsOpen(false)}
-                  className='text-muted-foreground hover:text-foreground transition-colors'
+                  className={cn(
+                    "transition-colors",
+                    isActive("/faqs")
+                      ? "text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
                   FAQs
                 </Link>
                 <Link
                   href='#'
                   onClick={() => setIsOpen(false)}
-                  className='text-muted-foreground hover:text-foreground transition-colors'
+                  className={cn(
+                    "transition-colors",
+                    isActive("/about")
+                      ? "text-foreground font-semibold"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
                 >
                   About Us
                 </Link>
