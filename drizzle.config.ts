@@ -8,5 +8,5 @@ export default {
   dbCredentials: {
     url: env.DATABASE_URL,
   },
-  tablesFilter: ["nextbet-shadlysia_*"],
+  tablesFilter: ["aruna-agency_*"],
 } satisfies Config

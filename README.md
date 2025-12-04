@@ -30,7 +30,7 @@ Follow these steps to get your project up and running in no time.
 
 ```bash
 git clone <your-repo-url>
-cd nextbet-shadlysia
+cd aruna-agency
 npm install
 # or
 pnpm install
