@@ -22,8 +22,8 @@ export type Landlord = {
   verificationDocuments: string[] | null
   bio: string | null
   rating: string | null
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 const statusVariants: Record<

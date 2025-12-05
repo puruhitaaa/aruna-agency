@@ -25,7 +25,7 @@ export type AuditLog = {
   details: unknown
   ipAddress: string | null
   userAgent: string | null
-  createdAt: string
+  createdAt: Date
 }
 
 const actionVariants: Record<
@@ -223,7 +223,7 @@ export const columns: ColumnDef<AuditLog>[] = [
                   </p>
                 </div>
               )}
-              {log.details && (
+              {Boolean(log.details) && (
                 <div>
                   <p className='text-sm font-medium text-muted-foreground mb-2'>
                     Details

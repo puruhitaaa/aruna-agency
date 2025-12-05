@@ -28,8 +28,8 @@ export type Payment = {
   gatewayTransactionId: string | null
   status: "pending" | "completed" | "failed" | "refunded"
   metadata: unknown
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 const statusVariants: Record<

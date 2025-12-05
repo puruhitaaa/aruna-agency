@@ -32,8 +32,8 @@ export type Property = {
   bathrooms: string
   features: string[] | null
   images: string[] | null
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 const statusVariants: Record<

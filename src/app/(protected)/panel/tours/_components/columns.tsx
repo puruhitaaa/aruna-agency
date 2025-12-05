@@ -20,11 +20,11 @@ export type Tour = {
   propertyId: string
   agentId: string | null
   buyerId: string
-  date: string
+  date: Date
   status: "pending" | "confirmed" | "cancelled" | "completed"
   notes: string | null
-  createdAt: string
-  updatedAt: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 const statusVariants: Record<

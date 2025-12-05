@@ -23,7 +23,7 @@ export type Notification = {
   message: string
   read: boolean
   data: unknown
-  createdAt: string
+  createdAt: Date
 }
 
 type ColumnActions = {

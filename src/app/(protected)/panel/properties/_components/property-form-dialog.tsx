@@ -39,8 +39,8 @@ const propertyFormSchema = z.object({
   state: z.string().min(1, "State is required").max(100),
   zipCode: z.string().min(1, "Zip code is required").max(20),
   country: z.string().optional(),
-  size: z.coerce.number().min(1, "Size is required"),
-  bedrooms: z.coerce.number().min(0, "Bedrooms must be 0 or more"),
+  size: z.number().min(1, "Size is required"),
+  bedrooms: z.number().min(0, "Bedrooms must be 0 or more"),
   bathrooms: z.string().min(1, "Bathrooms is required"),
 })
 
