@@ -1,5 +1,6 @@
 "use client"
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   type ColumnFiltersState,
   getCoreRowModel,
@@ -21,9 +22,15 @@ import { api } from "@/lib/eden"
 import { columns, type Landlord } from "./columns"
 import { LandlordFormDialog } from "./landlord-form-dialog"
 
+// Query key factory for landlords
+const landlordsKeys = {
+  all: ["landlords"] as const,
+  lists: () => [...landlordsKeys.all, "list"] as const,
+}
+
 export function LandlordsDataTable() {
-  const [data, setData] = React.useState<Landlord[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  const queryClient = useQueryClient()
+
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -42,27 +49,44 @@ export function LandlordsDataTable() {
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
 
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true)
-    try {
+  // Query for fetching landlords
+  const {
+    data = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: landlordsKeys.lists(),
+    queryFn: async () => {
       const response = await api.landlords.get()
       if (response.error) {
-        toast.error("Failed to fetch landlords")
-        console.error(response.error)
-        return
+        throw new Error("Failed to fetch landlords")
       }
-      setData(response.data?.data ?? [])
-    } catch (error) {
-      toast.error("Failed to fetch landlords")
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return response.data?.data ?? []
+    },
+  })
 
-  React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  // Mutation for deleting a landlord
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.landlords({ id }).delete()
+      if (response.error) {
+        throw new Error("Failed to delete landlord")
+      }
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success("Landlord deleted successfully")
+      queryClient.invalidateQueries({ queryKey: landlordsKeys.all })
+    },
+    onError: () => {
+      toast.error("Failed to delete landlord")
+    },
+    onSettled: () => {
+      setDeleteOpen(false)
+      setDeletingId(null)
+    },
+  })
 
   const handleCreate = () => {
     setEditingLandlord(null)
@@ -81,28 +105,13 @@ export function LandlordsDataTable() {
 
   const handleDelete = async () => {
     if (!deletingId) return
-
-    try {
-      const response = await api.landlords({ id: deletingId }).delete()
-      if (response.error) {
-        toast.error("Failed to delete landlord")
-        return
-      }
-      toast.success("Landlord deleted successfully")
-      fetchData()
-    } catch (error) {
-      toast.error("Failed to delete landlord")
-      console.error(error)
-    } finally {
-      setDeleteOpen(false)
-      setDeletingId(null)
-    }
+    deleteMutation.mutate(deletingId)
   }
 
   const handleFormSuccess = () => {
     setFormOpen(false)
     setEditingLandlord(null)
-    fetchData()
+    queryClient.invalidateQueries({ queryKey: landlordsKeys.all })
   }
 
   const table = useReactTable({
@@ -124,6 +133,8 @@ export function LandlordsDataTable() {
     },
   })
 
+  const isRefreshing = isLoading || isFetching
+
   return (
     <>
       <DataTable
@@ -135,11 +146,11 @@ export function LandlordsDataTable() {
             <Button
               variant='outline'
               size='sm'
-              onClick={fetchData}
-              disabled={isLoading}
+              onClick={() => refetch()}
+              disabled={isRefreshing}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </Button>

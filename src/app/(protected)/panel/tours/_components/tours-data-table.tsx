@@ -1,5 +1,6 @@
 "use client"
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   type ColumnFiltersState,
   getCoreRowModel,
@@ -21,9 +22,15 @@ import { api } from "@/lib/eden"
 import { columns, type Tour } from "./columns"
 import { TourFormDialog } from "./tour-form-dialog"
 
+// Query key factory for tours
+const toursKeys = {
+  all: ["tours"] as const,
+  lists: () => [...toursKeys.all, "list"] as const,
+}
+
 export function ToursDataTable() {
-  const [data, setData] = React.useState<Tour[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  const queryClient = useQueryClient()
+
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -40,27 +47,44 @@ export function ToursDataTable() {
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
 
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true)
-    try {
+  // Query for fetching tours
+  const {
+    data = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: toursKeys.lists(),
+    queryFn: async () => {
       const response = await api.tours.get()
       if (response.error) {
-        toast.error("Failed to fetch tours")
-        console.error(response.error)
-        return
+        throw new Error("Failed to fetch tours")
       }
-      setData(response.data?.data ?? [])
-    } catch (error) {
-      toast.error("Failed to fetch tours")
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return response.data?.data ?? []
+    },
+  })
 
-  React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  // Mutation for deleting a tour
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.tours({ id }).delete()
+      if (response.error) {
+        throw new Error("Failed to delete tour")
+      }
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success("Tour deleted successfully")
+      queryClient.invalidateQueries({ queryKey: toursKeys.all })
+    },
+    onError: () => {
+      toast.error("Failed to delete tour")
+    },
+    onSettled: () => {
+      setDeleteOpen(false)
+      setDeletingId(null)
+    },
+  })
 
   const handleCreate = () => {
     setEditingTour(null)
@@ -79,28 +103,13 @@ export function ToursDataTable() {
 
   const handleDelete = async () => {
     if (!deletingId) return
-
-    try {
-      const response = await api.tours({ id: deletingId }).delete()
-      if (response.error) {
-        toast.error("Failed to delete tour")
-        return
-      }
-      toast.success("Tour deleted successfully")
-      fetchData()
-    } catch (error) {
-      toast.error("Failed to delete tour")
-      console.error(error)
-    } finally {
-      setDeleteOpen(false)
-      setDeletingId(null)
-    }
+    deleteMutation.mutate(deletingId)
   }
 
   const handleFormSuccess = () => {
     setFormOpen(false)
     setEditingTour(null)
-    fetchData()
+    queryClient.invalidateQueries({ queryKey: toursKeys.all })
   }
 
   const table = useReactTable({
@@ -122,6 +131,8 @@ export function ToursDataTable() {
     },
   })
 
+  const isRefreshing = isLoading || isFetching
+
   return (
     <>
       <DataTable
@@ -133,11 +144,11 @@ export function ToursDataTable() {
             <Button
               variant='outline'
               size='sm'
-              onClick={fetchData}
-              disabled={isLoading}
+              onClick={() => refetch()}
+              disabled={isRefreshing}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </Button>

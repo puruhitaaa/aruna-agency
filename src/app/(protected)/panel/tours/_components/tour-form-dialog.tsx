@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -25,6 +26,11 @@ import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/eden"
 
 import type { Tour } from "./columns"
+
+const toursKeys = {
+  all: ["tours"] as const,
+  lists: () => [...toursKeys.all, "list"] as const,
+}
 
 const tourFormSchema = z.object({
   propertyId: z.string().min(1, "Property ID is required"),
@@ -51,6 +57,7 @@ export function TourFormDialog({
   onSuccess,
 }: TourFormDialogProps) {
   const isEditing = !!tour
+  const queryClient = useQueryClient()
 
   const form = useForm<TourFormValues>({
     resolver: zodResolver(tourFormSchema),
@@ -86,36 +93,100 @@ export function TourFormDialog({
     }
   }, [tour, form])
 
-  const onSubmit = async (data: TourFormValues) => {
-    try {
-      // Convert local datetime to ISO string
+  const createMutation = useMutation({
+    mutationFn: async (data: TourFormValues) => {
       const payload = {
         ...data,
         date: new Date(data.date).toISOString(),
         agentId: data.agentId || undefined,
       }
-
-      if (isEditing && tour) {
-        const response = await api.tours({ id: tour.id }).patch(payload)
-        if (response.error) {
-          toast.error("Failed to update tour")
-          return
+      const response = await api.tours.post(payload)
+      if (response.error) throw new Error("Failed to create tour")
+      return response.data
+    },
+    onMutate: async (newTour) => {
+      await queryClient.cancelQueries({ queryKey: toursKeys.lists() })
+      const prev = queryClient.getQueryData<Tour[]>(toursKeys.lists())
+      if (prev) {
+        const opt: Tour = {
+          id: `temp-${Date.now()}`,
+          propertyId: newTour.propertyId,
+          buyerId: newTour.buyerId,
+          agentId: newTour.agentId ?? null,
+          date: new Date(newTour.date),
+          status: newTour.status ?? "pending",
+          notes: newTour.notes ?? null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         }
-        toast.success("Tour updated successfully")
-      } else {
-        const response = await api.tours.post(payload)
-        if (response.error) {
-          toast.error("Failed to create tour")
-          return
-        }
-        toast.success("Tour scheduled successfully")
+        queryClient.setQueryData<Tour[]>(toursKeys.lists(), [opt, ...prev])
       }
+      return { prev }
+    },
+    onError: (_err, _new, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(toursKeys.lists(), ctx.prev)
+      toast.error("Failed to create tour")
+    },
+    onSuccess: () => {
+      toast.success("Tour scheduled successfully")
       onSuccess()
-    } catch (error) {
-      toast.error(isEditing ? "Failed to update tour" : "Failed to create tour")
-      console.error(error)
-    }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: toursKeys.all })
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: TourFormValues) => {
+      if (!tour) throw new Error("No tour to update")
+      const payload = {
+        ...data,
+        date: new Date(data.date).toISOString(),
+        agentId: data.agentId || undefined,
+      }
+      const response = await api.tours({ id: tour.id }).patch(payload)
+      if (response.error) throw new Error("Failed to update tour")
+      return response.data
+    },
+    onMutate: async (upd) => {
+      await queryClient.cancelQueries({ queryKey: toursKeys.lists() })
+      const prev = queryClient.getQueryData<Tour[]>(toursKeys.lists())
+      if (prev && tour) {
+        queryClient.setQueryData<Tour[]>(
+          toursKeys.lists(),
+          prev.map((t) =>
+            t.id === tour.id
+              ? {
+                  ...t,
+                  date: new Date(upd.date),
+                  agentId: upd.agentId ?? null,
+                  status: upd.status ?? t.status,
+                  notes: upd.notes ?? null,
+                  updatedAt: new Date(),
+                }
+              : t
+          )
+        )
+      }
+      return { prev }
+    },
+    onError: (_err, _upd, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(toursKeys.lists(), ctx.prev)
+      toast.error("Failed to update tour")
+    },
+    onSuccess: () => {
+      toast.success("Tour updated successfully")
+      onSuccess()
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: toursKeys.all })
+    },
+  })
+
+  const onSubmit = (data: TourFormValues) => {
+    isEditing ? updateMutation.mutate(data) : createMutation.mutate(data)
   }
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
     <DataTableFormDialog
@@ -130,6 +201,7 @@ export function TourFormDialog({
       form={form}
       onSubmit={onSubmit}
       submitText={isEditing ? "Update" : "Schedule"}
+      isSubmitting={isPending}
     >
       <div className='grid gap-4'>
         <div className='grid grid-cols-2 gap-4'>
@@ -150,7 +222,6 @@ export function TourFormDialog({
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name='buyerId'
@@ -169,7 +240,6 @@ export function TourFormDialog({
             )}
           />
         </div>
-
         <div className='grid grid-cols-2 gap-4'>
           <FormField
             control={form.control}
@@ -184,7 +254,6 @@ export function TourFormDialog({
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name='agentId'
@@ -199,7 +268,6 @@ export function TourFormDialog({
             )}
           />
         </div>
-
         {isEditing && (
           <FormField
             control={form.control}
@@ -228,7 +296,6 @@ export function TourFormDialog({
             )}
           />
         )}
-
         <FormField
           control={form.control}
           name='notes'

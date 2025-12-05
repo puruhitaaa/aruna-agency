@@ -21,7 +21,7 @@ export namespace PropertyModel {
     city: t.String({ maxLength: 100 }),
     state: t.String({ maxLength: 100 }),
     zipCode: t.String({ maxLength: 20 }),
-    country: t.Optional(t.String({ default: "USA" })),
+    country: t.Optional(t.String({ default: "ID" })),
     size: t.Numeric(),
     bedrooms: t.Integer(),
     bathrooms: t.String(), // Decimal

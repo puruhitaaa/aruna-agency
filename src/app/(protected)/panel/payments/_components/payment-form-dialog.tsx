@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -24,6 +25,11 @@ import {
 import { api } from "@/lib/eden"
 
 import type { Payment } from "./columns"
+
+const paymentsKeys = {
+  all: ["payments"] as const,
+  lists: () => [...paymentsKeys.all, "list"] as const,
+}
 
 const paymentFormSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
@@ -54,6 +60,7 @@ export function PaymentFormDialog({
   onSuccess,
 }: PaymentFormDialogProps) {
   const isEditing = !!payment
+  const queryClient = useQueryClient()
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
@@ -103,8 +110,8 @@ export function PaymentFormDialog({
     }
   }, [payment, form])
 
-  const onSubmit = async (data: PaymentFormValues) => {
-    try {
+  const createMutation = useMutation({
+    mutationFn: async (data: PaymentFormValues) => {
       const payload = {
         ...data,
         propertyId: data.propertyId || undefined,
@@ -114,33 +121,104 @@ export function PaymentFormDialog({
         installmentNumber:
           data.planType === "installment" ? data.installmentNumber : undefined,
       }
-
-      if (isEditing && payment) {
-        const response = await api.payments({ id: payment.id }).patch({
-          status: data.status,
-          gatewayTransactionId: data.gatewayTransactionId || undefined,
-        })
-        if (response.error) {
-          toast.error("Failed to update payment")
-          return
+      const response = await api.payments.post(payload)
+      if (response.error) throw new Error("Failed to create payment")
+      return response.data
+    },
+    onMutate: async (newPayment) => {
+      await queryClient.cancelQueries({ queryKey: paymentsKeys.lists() })
+      const prev = queryClient.getQueryData<Payment[]>(paymentsKeys.lists())
+      if (prev) {
+        const opt: Payment = {
+          id: `temp-${Date.now()}`,
+          userId: newPayment.userId,
+          propertyId: newPayment.propertyId ?? null,
+          amount: newPayment.amount,
+          currency: newPayment.currency ?? "IDR",
+          planType: newPayment.planType ?? "full_payment",
+          installmentsTotal:
+            newPayment.planType === "installment"
+              ? newPayment.installmentsTotal ?? null
+              : null,
+          installmentNumber:
+            newPayment.planType === "installment"
+              ? newPayment.installmentNumber ?? null
+              : null,
+          gateway: newPayment.gateway,
+          gatewayTransactionId: newPayment.gatewayTransactionId ?? null,
+          status: newPayment.status ?? "pending",
+          metadata: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
         }
-        toast.success("Payment updated successfully")
-      } else {
-        const response = await api.payments.post(payload)
-        if (response.error) {
-          toast.error("Failed to create payment")
-          return
-        }
-        toast.success("Payment recorded successfully")
+        queryClient.setQueryData<Payment[]>(paymentsKeys.lists(), [
+          opt,
+          ...prev,
+        ])
       }
+      return { prev }
+    },
+    onError: (_err, _new, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(paymentsKeys.lists(), ctx.prev)
+      toast.error("Failed to create payment")
+    },
+    onSuccess: () => {
+      toast.success("Payment recorded successfully")
       onSuccess()
-    } catch (error) {
-      toast.error(
-        isEditing ? "Failed to update payment" : "Failed to create payment"
-      )
-      console.error(error)
-    }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: paymentsKeys.all })
+    },
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: PaymentFormValues) => {
+      if (!payment) throw new Error("No payment to update")
+      const response = await api.payments({ id: payment.id }).patch({
+        status: data.status,
+        gatewayTransactionId: data.gatewayTransactionId || undefined,
+      })
+      if (response.error) throw new Error("Failed to update payment")
+      return response.data
+    },
+    onMutate: async (upd) => {
+      await queryClient.cancelQueries({ queryKey: paymentsKeys.lists() })
+      const prev = queryClient.getQueryData<Payment[]>(paymentsKeys.lists())
+      if (prev && payment) {
+        queryClient.setQueryData<Payment[]>(
+          paymentsKeys.lists(),
+          prev.map((p) =>
+            p.id === payment.id
+              ? {
+                  ...p,
+                  status: upd.status ?? p.status,
+                  gatewayTransactionId:
+                    upd.gatewayTransactionId ?? p.gatewayTransactionId,
+                  updatedAt: new Date(),
+                }
+              : p
+          )
+        )
+      }
+      return { prev }
+    },
+    onError: (_err, _upd, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(paymentsKeys.lists(), ctx.prev)
+      toast.error("Failed to update payment")
+    },
+    onSuccess: () => {
+      toast.success("Payment updated successfully")
+      onSuccess()
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: paymentsKeys.all })
+    },
+  })
+
+  const onSubmit = (data: PaymentFormValues) => {
+    isEditing ? updateMutation.mutate(data) : createMutation.mutate(data)
   }
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
     <DataTableFormDialog
@@ -155,6 +233,7 @@ export function PaymentFormDialog({
       form={form}
       onSubmit={onSubmit}
       submitText={isEditing ? "Update" : "Record"}
+      isSubmitting={isPending}
     >
       <div className='grid gap-4'>
         <div className='grid grid-cols-2 gap-4'>
@@ -175,7 +254,6 @@ export function PaymentFormDialog({
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name='propertyId'
@@ -194,7 +272,6 @@ export function PaymentFormDialog({
             )}
           />
         </div>
-
         <div className='grid grid-cols-2 gap-4'>
           <FormField
             control={form.control}
@@ -215,7 +292,6 @@ export function PaymentFormDialog({
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name='currency'
@@ -234,6 +310,7 @@ export function PaymentFormDialog({
                   </FormControl>
                   <SelectContent>
                     <SelectItem value='USD'>USD</SelectItem>
+                    <SelectItem value='IDR'>IDR</SelectItem>
                     <SelectItem value='EUR'>EUR</SelectItem>
                     <SelectItem value='GBP'>GBP</SelectItem>
                     <SelectItem value='IDR'>IDR</SelectItem>
@@ -244,7 +321,6 @@ export function PaymentFormDialog({
             )}
           />
         </div>
-
         <div className='grid grid-cols-2 gap-4'>
           <FormField
             control={form.control}
@@ -273,7 +349,6 @@ export function PaymentFormDialog({
               </FormItem>
             )}
           />
-
           <FormField
             control={form.control}
             name='status'
@@ -301,7 +376,6 @@ export function PaymentFormDialog({
             )}
           />
         </div>
-
         <FormField
           control={form.control}
           name='planType'
@@ -327,7 +401,6 @@ export function PaymentFormDialog({
             </FormItem>
           )}
         />
-
         {planType === "installment" && !isEditing && (
           <div className='grid grid-cols-2 gap-4'>
             <FormField
@@ -343,7 +416,6 @@ export function PaymentFormDialog({
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name='installmentNumber'
@@ -359,7 +431,6 @@ export function PaymentFormDialog({
             />
           </div>
         )}
-
         <FormField
           control={form.control}
           name='gatewayTransactionId'

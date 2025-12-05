@@ -1,5 +1,6 @@
 import * as React from "react"
-import { UseFormReturn, FieldValues } from "react-hook-form"
+import type { FieldValues, UseFormReturn } from "react-hook-form"
+import { Button } from "@/components/ui/button"
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
 import { Form } from "@/components/ui/form"
 
 interface DataTableFormDialogProps<T extends FieldValues> {
@@ -22,6 +22,7 @@ interface DataTableFormDialogProps<T extends FieldValues> {
   onOpenChange?: (open: boolean) => void
   children: React.ReactNode
   submitText?: string
+  isSubmitting?: boolean
 }
 
 export function DataTableFormDialog<T extends FieldValues>({
@@ -34,23 +35,35 @@ export function DataTableFormDialog<T extends FieldValues>({
   onOpenChange: setControlledOpen,
   children,
   submitText = "Save",
+  isSubmitting: externalIsSubmitting,
 }: DataTableFormDialogProps<T>) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false)
   const open = controlledOpen ?? uncontrolledOpen
   const setOpen = setControlledOpen ?? setUncontrolledOpen
 
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [internalIsSubmitting, setInternalIsSubmitting] = React.useState(false)
+
+  // Use external isSubmitting if provided, otherwise use internal state
+  const isSubmitting = externalIsSubmitting ?? internalIsSubmitting
 
   const handleSubmit = async (data: T) => {
     try {
-      setIsSubmitting(true)
+      // Only manage internal state if not externally controlled
+      if (externalIsSubmitting === undefined) {
+        setInternalIsSubmitting(true)
+      }
       await onSubmit(data)
-      setOpen(false)
-      form.reset()
+      // Don't auto-close if externally controlled - let parent handle it
+      if (externalIsSubmitting === undefined) {
+        setOpen(false)
+        form.reset()
+      }
     } catch (error) {
       console.error("Form submission error", error)
     } finally {
-      setIsSubmitting(false)
+      if (externalIsSubmitting === undefined) {
+        setInternalIsSubmitting(false)
+      }
     }
   }
 

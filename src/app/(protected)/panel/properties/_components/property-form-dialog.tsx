@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -25,6 +26,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/eden"
 
 import type { Property } from "./columns"
+
+// Query key factory - must match the one in data-table
+const propertiesKeys = {
+  all: ["properties"] as const,
+  lists: () => [...propertiesKeys.all, "list"] as const,
+}
 
 const propertyFormSchema = z.object({
   ownerId: z.string().min(1, "Owner ID is required"),
@@ -60,6 +67,7 @@ export function PropertyFormDialog({
   onSuccess,
 }: PropertyFormDialogProps) {
   const isEditing = !!property
+  const queryClient = useQueryClient()
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
@@ -73,7 +81,7 @@ export function PropertyFormDialog({
       city: "",
       state: "",
       zipCode: "",
-      country: "USA",
+      country: "ID",
       size: 0,
       bedrooms: 0,
       bathrooms: "1",
@@ -116,31 +124,139 @@ export function PropertyFormDialog({
     }
   }, [property, form])
 
-  const onSubmit = async (data: PropertyFormValues) => {
-    try {
-      if (isEditing && property) {
-        const response = await api.properties({ id: property.id }).patch(data)
-        if (response.error) {
-          toast.error("Failed to update property")
-          return
-        }
-        toast.success("Property updated successfully")
-      } else {
-        const response = await api.properties.post(data)
-        if (response.error) {
-          toast.error("Failed to create property")
-          return
-        }
-        toast.success("Property created successfully")
+  // Create mutation with optimistic update
+  const createMutation = useMutation({
+    mutationFn: async (data: PropertyFormValues) => {
+      const response = await api.properties.post(data)
+      if (response.error) {
+        throw new Error("Failed to create property")
       }
-      onSuccess()
-    } catch (error) {
-      toast.error(
-        isEditing ? "Failed to update property" : "Failed to create property"
+      return response.data
+    },
+    onMutate: async (newProperty) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: propertiesKeys.lists() })
+
+      // Snapshot the previous value
+      const previousProperties = queryClient.getQueryData<Property[]>(
+        propertiesKeys.lists()
       )
-      console.error(error)
+
+      // Optimistically update with a temp ID
+      if (previousProperties) {
+        const optimisticProperty: Property = {
+          id: `temp-${Date.now()}`,
+          ...newProperty,
+          ownerId: newProperty.ownerId,
+          title: newProperty.title,
+          description: newProperty.description ?? null,
+          price: newProperty.price,
+          status: newProperty.status ?? "draft",
+          address: newProperty.address,
+          city: newProperty.city,
+          state: newProperty.state,
+          zipCode: newProperty.zipCode,
+          country: newProperty.country ?? "ID",
+          size: newProperty.size,
+          bedrooms: newProperty.bedrooms,
+          bathrooms: newProperty.bathrooms,
+          features: null,
+          images: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        queryClient.setQueryData<Property[]>(propertiesKeys.lists(), [
+          optimisticProperty,
+          ...previousProperties,
+        ])
+      }
+
+      return { previousProperties }
+    },
+    onError: (_err, _newProperty, context) => {
+      // Rollback on error
+      if (context?.previousProperties) {
+        queryClient.setQueryData(
+          propertiesKeys.lists(),
+          context.previousProperties
+        )
+      }
+      toast.error("Failed to create property")
+    },
+    onSuccess: () => {
+      toast.success("Property created successfully")
+      onSuccess()
+    },
+    onSettled: () => {
+      // Refetch to ensure consistency
+      queryClient.invalidateQueries({ queryKey: propertiesKeys.all })
+    },
+  })
+
+  // Update mutation with optimistic update
+  const updateMutation = useMutation({
+    mutationFn: async (data: PropertyFormValues) => {
+      if (!property) throw new Error("No property to update")
+      const response = await api.properties({ id: property.id }).patch(data)
+      if (response.error) {
+        throw new Error("Failed to update property")
+      }
+      return response.data
+    },
+    onMutate: async (updatedData) => {
+      await queryClient.cancelQueries({ queryKey: propertiesKeys.lists() })
+
+      const previousProperties = queryClient.getQueryData<Property[]>(
+        propertiesKeys.lists()
+      )
+
+      if (previousProperties && property) {
+        queryClient.setQueryData<Property[]>(
+          propertiesKeys.lists(),
+          previousProperties.map((p) =>
+            p.id === property.id
+              ? {
+                  ...p,
+                  ...updatedData,
+                  description: updatedData.description ?? null,
+                  country: updatedData.country ?? p.country,
+                  status: updatedData.status ?? p.status,
+                  updatedAt: new Date(),
+                }
+              : p
+          )
+        )
+      }
+
+      return { previousProperties }
+    },
+    onError: (_err, _updatedData, context) => {
+      if (context?.previousProperties) {
+        queryClient.setQueryData(
+          propertiesKeys.lists(),
+          context.previousProperties
+        )
+      }
+      toast.error("Failed to update property")
+    },
+    onSuccess: () => {
+      toast.success("Property updated successfully")
+      onSuccess()
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: propertiesKeys.all })
+    },
+  })
+
+  const onSubmit = async (data: PropertyFormValues) => {
+    if (isEditing) {
+      updateMutation.mutate(data)
+    } else {
+      createMutation.mutate(data)
     }
   }
+
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
     <DataTableFormDialog
@@ -155,6 +271,7 @@ export function PropertyFormDialog({
       form={form}
       onSubmit={onSubmit}
       submitText={isEditing ? "Update" : "Create"}
+      isSubmitting={isPending}
     >
       <div className='grid grid-cols-2 gap-4'>
         <FormField
@@ -352,7 +469,7 @@ export function PropertyFormDialog({
             <FormItem>
               <FormLabel>Country</FormLabel>
               <FormControl>
-                <Input placeholder='USA' {...field} />
+                <Input placeholder='ID' {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   type ColumnFiltersState,
   getCoreRowModel,
@@ -21,9 +22,15 @@ import { api } from "@/lib/eden"
 import { columns, type Notification } from "./columns"
 import { NotificationFormDialog } from "./notification-form-dialog"
 
+// Query key factory for notifications
+const notificationsKeys = {
+  all: ["notifications"] as const,
+  lists: () => [...notificationsKeys.all, "list"] as const,
+}
+
 export function NotificationsDataTable() {
-  const [data, setData] = React.useState<Notification[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  const queryClient = useQueryClient()
+
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -41,27 +48,44 @@ export function NotificationsDataTable() {
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
 
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true)
-    try {
+  // Query for fetching notifications
+  const {
+    data = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: notificationsKeys.lists(),
+    queryFn: async () => {
       const response = await api.notifications.get()
       if (response.error) {
-        toast.error("Failed to fetch notifications")
-        console.error(response.error)
-        return
+        throw new Error("Failed to fetch notifications")
       }
-      setData(response.data?.data ?? [])
-    } catch (error) {
-      toast.error("Failed to fetch notifications")
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return response.data?.data ?? []
+    },
+  })
 
-  React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  // Mutation for deleting a notification
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.notifications({ id }).delete()
+      if (response.error) {
+        throw new Error("Failed to delete notification")
+      }
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success("Notification deleted successfully")
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all })
+    },
+    onError: () => {
+      toast.error("Failed to delete notification")
+    },
+    onSettled: () => {
+      setDeleteOpen(false)
+      setDeletingId(null)
+    },
+  })
 
   const handleCreate = () => {
     setEditingNotification(null)
@@ -80,28 +104,13 @@ export function NotificationsDataTable() {
 
   const handleDelete = async () => {
     if (!deletingId) return
-
-    try {
-      const response = await api.notifications({ id: deletingId }).delete()
-      if (response.error) {
-        toast.error("Failed to delete notification")
-        return
-      }
-      toast.success("Notification deleted successfully")
-      fetchData()
-    } catch (error) {
-      toast.error("Failed to delete notification")
-      console.error(error)
-    } finally {
-      setDeleteOpen(false)
-      setDeletingId(null)
-    }
+    deleteMutation.mutate(deletingId)
   }
 
   const handleFormSuccess = () => {
     setFormOpen(false)
     setEditingNotification(null)
-    fetchData()
+    queryClient.invalidateQueries({ queryKey: notificationsKeys.all })
   }
 
   const table = useReactTable({
@@ -123,6 +132,8 @@ export function NotificationsDataTable() {
     },
   })
 
+  const isRefreshing = isLoading || isFetching
+
   return (
     <>
       <DataTable
@@ -134,11 +145,11 @@ export function NotificationsDataTable() {
             <Button
               variant='outline'
               size='sm'
-              onClick={fetchData}
-              disabled={isLoading}
+              onClick={() => refetch()}
+              disabled={isRefreshing}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </Button>

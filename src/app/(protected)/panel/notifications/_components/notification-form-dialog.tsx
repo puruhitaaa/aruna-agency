@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -26,6 +27,12 @@ import { api } from "@/lib/eden"
 
 import type { Notification } from "./columns"
 
+// Query key factory - must match the one in data-table
+const notificationsKeys = {
+  all: ["notifications"] as const,
+  lists: () => [...notificationsKeys.all, "list"] as const,
+}
+
 const notificationFormSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   type: z.string().min(1, "Type is required").max(50),
@@ -50,6 +57,7 @@ export function NotificationFormDialog({
   onSuccess,
 }: NotificationFormDialogProps) {
   const isEditing = !!notification
+  const queryClient = useQueryClient()
 
   const form = useForm<NotificationFormValues>({
     resolver: zodResolver(notificationFormSchema),
@@ -82,49 +90,126 @@ export function NotificationFormDialog({
     }
   }, [notification, form])
 
-  const onSubmit = async (data: NotificationFormValues) => {
-    try {
-      if (isEditing && notification) {
-        // When editing, toggle the read status
-        const response = await api
-          .notifications({ id: notification.id })
-          .patch({ read: !notification.read })
-        if (response.error) {
-          toast.error("Failed to update notification")
-          return
-        }
-        toast.success(notification.read ? "Marked as unread" : "Marked as read")
-      } else {
-        const response = await api.notifications.post({
-          userId: data.userId,
-          type: data.type,
-          title: data.title,
-          message: data.message,
-        })
-        if (response.error) {
-          toast.error("Failed to send notification")
-          return
-        }
-        toast.success("Notification sent successfully")
+  // Create mutation with optimistic update
+  const createMutation = useMutation({
+    mutationFn: async (data: NotificationFormValues) => {
+      const response = await api.notifications.post({
+        userId: data.userId,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+      })
+      if (response.error) {
+        throw new Error("Failed to send notification")
       }
-      onSuccess()
-    } catch (error) {
-      toast.error(
-        isEditing
-          ? "Failed to update notification"
-          : "Failed to send notification"
-      )
-      console.error(error)
-    }
-  }
+      return response.data
+    },
+    onMutate: async (newNotification) => {
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.lists() })
 
-  // For editing, we just toggle read status immediately
+      const previousNotifications = queryClient.getQueryData<Notification[]>(
+        notificationsKeys.lists()
+      )
+
+      if (previousNotifications) {
+        const optimisticNotification: Notification = {
+          id: `temp-${Date.now()}`,
+          userId: newNotification.userId,
+          type: newNotification.type,
+          title: newNotification.title,
+          message: newNotification.message,
+          read: false,
+          data: null,
+          createdAt: new Date(),
+        }
+        queryClient.setQueryData<Notification[]>(notificationsKeys.lists(), [
+          optimisticNotification,
+          ...previousNotifications,
+        ])
+      }
+
+      return { previousNotifications }
+    },
+    onError: (_err, _newNotification, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          notificationsKeys.lists(),
+          context.previousNotifications
+        )
+      }
+      toast.error("Failed to send notification")
+    },
+    onSuccess: () => {
+      toast.success("Notification sent successfully")
+      onSuccess()
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all })
+    },
+  })
+
+  // Toggle read status mutation with optimistic update
+  const toggleReadMutation = useMutation({
+    mutationFn: async (notificationToUpdate: Notification) => {
+      const response = await api
+        .notifications({ id: notificationToUpdate.id })
+        .patch({ read: !notificationToUpdate.read })
+      if (response.error) {
+        throw new Error("Failed to update notification")
+      }
+      return response.data
+    },
+    onMutate: async (notificationToUpdate) => {
+      await queryClient.cancelQueries({ queryKey: notificationsKeys.lists() })
+
+      const previousNotifications = queryClient.getQueryData<Notification[]>(
+        notificationsKeys.lists()
+      )
+
+      if (previousNotifications) {
+        queryClient.setQueryData<Notification[]>(
+          notificationsKeys.lists(),
+          previousNotifications.map((n) =>
+            n.id === notificationToUpdate.id ? { ...n, read: !n.read } : n
+          )
+        )
+      }
+
+      return { previousNotifications }
+    },
+    onError: (_err, _notificationToUpdate, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          notificationsKeys.lists(),
+          context.previousNotifications
+        )
+      }
+      toast.error("Failed to update notification")
+    },
+    onSuccess: (_, notificationToUpdate) => {
+      toast.success(
+        notificationToUpdate.read ? "Marked as unread" : "Marked as read"
+      )
+      onSuccess()
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: notificationsKeys.all })
+    },
+  })
+
+  // Handle toggle for editing
   React.useEffect(() => {
-    if (isEditing && open) {
-      onSubmit(form.getValues())
+    if (isEditing && open && notification) {
+      toggleReadMutation.mutate(notification)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing, open])
+
+  const onSubmit = async (data: NotificationFormValues) => {
+    createMutation.mutate(data)
+  }
+
+  const isPending = createMutation.isPending || toggleReadMutation.isPending
 
   // Don't show dialog for editing - just toggle and close
   if (isEditing) {
@@ -140,6 +225,7 @@ export function NotificationFormDialog({
       form={form}
       onSubmit={onSubmit}
       submitText='Send'
+      isSubmitting={isPending}
     >
       <div className='grid gap-4'>
         <FormField

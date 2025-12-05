@@ -1,5 +1,6 @@
 "use client"
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   type ColumnFiltersState,
   getCoreRowModel,
@@ -21,9 +22,15 @@ import { api } from "@/lib/eden"
 import { columns, type Payment } from "./columns"
 import { PaymentFormDialog } from "./payment-form-dialog"
 
+// Query key factory for payments
+const paymentsKeys = {
+  all: ["payments"] as const,
+  lists: () => [...paymentsKeys.all, "list"] as const,
+}
+
 export function PaymentsDataTable() {
-  const [data, setData] = React.useState<Payment[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  const queryClient = useQueryClient()
+
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -42,27 +49,44 @@ export function PaymentsDataTable() {
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
 
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true)
-    try {
+  // Query for fetching payments
+  const {
+    data = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: paymentsKeys.lists(),
+    queryFn: async () => {
       const response = await api.payments.get()
       if (response.error) {
-        toast.error("Failed to fetch payments")
-        console.error(response.error)
-        return
+        throw new Error("Failed to fetch payments")
       }
-      setData(response.data?.data ?? [])
-    } catch (error) {
-      toast.error("Failed to fetch payments")
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return response.data?.data ?? []
+    },
+  })
 
-  React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  // Mutation for deleting a payment
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.payments({ id }).delete()
+      if (response.error) {
+        throw new Error("Failed to delete payment")
+      }
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success("Payment deleted successfully")
+      queryClient.invalidateQueries({ queryKey: paymentsKeys.all })
+    },
+    onError: () => {
+      toast.error("Failed to delete payment")
+    },
+    onSettled: () => {
+      setDeleteOpen(false)
+      setDeletingId(null)
+    },
+  })
 
   const handleCreate = () => {
     setEditingPayment(null)
@@ -81,28 +105,13 @@ export function PaymentsDataTable() {
 
   const handleDelete = async () => {
     if (!deletingId) return
-
-    try {
-      const response = await api.payments({ id: deletingId }).delete()
-      if (response.error) {
-        toast.error("Failed to delete payment")
-        return
-      }
-      toast.success("Payment deleted successfully")
-      fetchData()
-    } catch (error) {
-      toast.error("Failed to delete payment")
-      console.error(error)
-    } finally {
-      setDeleteOpen(false)
-      setDeletingId(null)
-    }
+    deleteMutation.mutate(deletingId)
   }
 
   const handleFormSuccess = () => {
     setFormOpen(false)
     setEditingPayment(null)
-    fetchData()
+    queryClient.invalidateQueries({ queryKey: paymentsKeys.all })
   }
 
   const table = useReactTable({
@@ -124,6 +133,8 @@ export function PaymentsDataTable() {
     },
   })
 
+  const isRefreshing = isLoading || isFetching
+
   return (
     <>
       <DataTable
@@ -135,11 +146,11 @@ export function PaymentsDataTable() {
             <Button
               variant='outline'
               size='sm'
-              onClick={fetchData}
-              disabled={isLoading}
+              onClick={() => refetch()}
+              disabled={isRefreshing}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </Button>

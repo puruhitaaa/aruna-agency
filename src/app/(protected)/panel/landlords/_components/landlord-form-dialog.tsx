@@ -1,6 +1,7 @@
 "use client"
 
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation, useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { toast } from "sonner"
@@ -26,6 +27,12 @@ import { api } from "@/lib/eden"
 
 import type { Landlord } from "./columns"
 
+// Query key factory - must match the one in data-table
+const landlordsKeys = {
+  all: ["landlords"] as const,
+  lists: () => [...landlordsKeys.all, "list"] as const,
+}
+
 const landlordFormSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   bio: z.string().optional(),
@@ -49,6 +56,7 @@ export function LandlordFormDialog({
   onSuccess,
 }: LandlordFormDialogProps) {
   const isEditing = !!landlord
+  const queryClient = useQueryClient()
 
   const form = useForm<LandlordFormValues>({
     resolver: zodResolver(landlordFormSchema),
@@ -78,34 +86,126 @@ export function LandlordFormDialog({
     }
   }, [landlord, form])
 
-  const onSubmit = async (data: LandlordFormValues) => {
-    try {
-      if (isEditing && landlord) {
-        const response = await api.landlords({ id: landlord.id }).patch(data)
-        if (response.error) {
-          toast.error("Failed to update landlord")
-          return
-        }
-        toast.success("Landlord updated successfully")
-      } else {
-        const response = await api.landlords.post({
-          userId: data.userId,
-          bio: data.bio,
-        })
-        if (response.error) {
-          toast.error("Failed to create landlord")
-          return
-        }
-        toast.success("Landlord created successfully")
+  // Create mutation with optimistic update
+  const createMutation = useMutation({
+    mutationFn: async (data: LandlordFormValues) => {
+      const response = await api.landlords.post({
+        userId: data.userId,
+        bio: data.bio,
+      })
+      if (response.error) {
+        throw new Error("Failed to create landlord")
       }
-      onSuccess()
-    } catch (error) {
-      toast.error(
-        isEditing ? "Failed to update landlord" : "Failed to create landlord"
+      return response.data
+    },
+    onMutate: async (newLandlord) => {
+      await queryClient.cancelQueries({ queryKey: landlordsKeys.lists() })
+
+      const previousLandlords = queryClient.getQueryData<Landlord[]>(
+        landlordsKeys.lists()
       )
-      console.error(error)
+
+      if (previousLandlords) {
+        const optimisticLandlord: Landlord = {
+          id: `temp-${Date.now()}`,
+          userId: newLandlord.userId,
+          bio: newLandlord.bio ?? null,
+          verificationStatus: "pending",
+          verificationDocuments: null,
+          rating: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }
+        queryClient.setQueryData<Landlord[]>(landlordsKeys.lists(), [
+          optimisticLandlord,
+          ...previousLandlords,
+        ])
+      }
+
+      return { previousLandlords }
+    },
+    onError: (_err, _newLandlord, context) => {
+      if (context?.previousLandlords) {
+        queryClient.setQueryData(
+          landlordsKeys.lists(),
+          context.previousLandlords
+        )
+      }
+      toast.error("Failed to create landlord")
+    },
+    onSuccess: () => {
+      toast.success("Landlord created successfully")
+      onSuccess()
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: landlordsKeys.all })
+    },
+  })
+
+  // Update mutation with optimistic update
+  const updateMutation = useMutation({
+    mutationFn: async (data: LandlordFormValues) => {
+      if (!landlord) throw new Error("No landlord to update")
+      const response = await api.landlords({ id: landlord.id }).patch(data)
+      if (response.error) {
+        throw new Error("Failed to update landlord")
+      }
+      return response.data
+    },
+    onMutate: async (updatedData) => {
+      await queryClient.cancelQueries({ queryKey: landlordsKeys.lists() })
+
+      const previousLandlords = queryClient.getQueryData<Landlord[]>(
+        landlordsKeys.lists()
+      )
+
+      if (previousLandlords && landlord) {
+        queryClient.setQueryData<Landlord[]>(
+          landlordsKeys.lists(),
+          previousLandlords.map((l) =>
+            l.id === landlord.id
+              ? {
+                  ...l,
+                  bio: updatedData.bio ?? null,
+                  verificationStatus:
+                    updatedData.verificationStatus ?? l.verificationStatus,
+                  rating: updatedData.rating ?? null,
+                  updatedAt: new Date(),
+                }
+              : l
+          )
+        )
+      }
+
+      return { previousLandlords }
+    },
+    onError: (_err, _updatedData, context) => {
+      if (context?.previousLandlords) {
+        queryClient.setQueryData(
+          landlordsKeys.lists(),
+          context.previousLandlords
+        )
+      }
+      toast.error("Failed to update landlord")
+    },
+    onSuccess: () => {
+      toast.success("Landlord updated successfully")
+      onSuccess()
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: landlordsKeys.all })
+    },
+  })
+
+  const onSubmit = async (data: LandlordFormValues) => {
+    if (isEditing) {
+      updateMutation.mutate(data)
+    } else {
+      createMutation.mutate(data)
     }
   }
+
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   return (
     <DataTableFormDialog
@@ -120,6 +220,7 @@ export function LandlordFormDialog({
       form={form}
       onSubmit={onSubmit}
       submitText={isEditing ? "Update" : "Create"}
+      isSubmitting={isPending}
     >
       <div className='grid gap-4'>
         <FormField

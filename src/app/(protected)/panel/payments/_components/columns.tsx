@@ -92,9 +92,9 @@ export const columns = ({
     cell: ({ row }) => {
       const amount = parseFloat(row.getValue("amount"))
       const currency = row.original.currency
-      const formatted = new Intl.NumberFormat("en-US", {
+      const formatted = new Intl.NumberFormat("id-ID", {
         style: "currency",
-        currency: currency || "USD",
+        currency: currency || "IDR",
       }).format(amount)
       return <div className='font-medium'>{formatted}</div>
     },

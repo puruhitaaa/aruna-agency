@@ -1,5 +1,6 @@
 "use client"
 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {
   type ColumnFiltersState,
   getCoreRowModel,
@@ -21,9 +22,15 @@ import { api } from "@/lib/eden"
 import { columns, type Property } from "./columns"
 import { PropertyFormDialog } from "./property-form-dialog"
 
+// Query key factory for properties
+const propertiesKeys = {
+  all: ["properties"] as const,
+  lists: () => [...propertiesKeys.all, "list"] as const,
+}
+
 export function PropertiesDataTable() {
-  const [data, setData] = React.useState<Property[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  const queryClient = useQueryClient()
+
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -42,27 +49,44 @@ export function PropertiesDataTable() {
   const [deleteOpen, setDeleteOpen] = React.useState(false)
   const [deletingId, setDeletingId] = React.useState<string | null>(null)
 
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true)
-    try {
+  // Query for fetching properties
+  const {
+    data = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: propertiesKeys.lists(),
+    queryFn: async () => {
       const response = await api.properties.get()
       if (response.error) {
-        toast.error("Failed to fetch properties")
-        console.error(response.error)
-        return
+        throw new Error("Failed to fetch properties")
       }
-      setData(response.data?.data ?? [])
-    } catch (error) {
-      toast.error("Failed to fetch properties")
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return response.data?.data ?? []
+    },
+  })
 
-  React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  // Mutation for deleting a property
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await api.properties({ id }).delete()
+      if (response.error) {
+        throw new Error("Failed to delete property")
+      }
+      return response.data
+    },
+    onSuccess: () => {
+      toast.success("Property deleted successfully")
+      queryClient.invalidateQueries({ queryKey: propertiesKeys.all })
+    },
+    onError: () => {
+      toast.error("Failed to delete property")
+    },
+    onSettled: () => {
+      setDeleteOpen(false)
+      setDeletingId(null)
+    },
+  })
 
   const handleCreate = () => {
     setEditingProperty(null)
@@ -81,28 +105,13 @@ export function PropertiesDataTable() {
 
   const handleDelete = async () => {
     if (!deletingId) return
-
-    try {
-      const response = await api.properties({ id: deletingId }).delete()
-      if (response.error) {
-        toast.error("Failed to delete property")
-        return
-      }
-      toast.success("Property deleted successfully")
-      fetchData()
-    } catch (error) {
-      toast.error("Failed to delete property")
-      console.error(error)
-    } finally {
-      setDeleteOpen(false)
-      setDeletingId(null)
-    }
+    deleteMutation.mutate(deletingId)
   }
 
   const handleFormSuccess = () => {
     setFormOpen(false)
     setEditingProperty(null)
-    fetchData()
+    queryClient.invalidateQueries({ queryKey: propertiesKeys.all })
   }
 
   const table = useReactTable({
@@ -124,6 +133,8 @@ export function PropertiesDataTable() {
     },
   })
 
+  const isRefreshing = isLoading || isFetching
+
   return (
     <>
       <DataTable
@@ -135,11 +146,11 @@ export function PropertiesDataTable() {
             <Button
               variant='outline'
               size='sm'
-              onClick={fetchData}
-              disabled={isLoading}
+              onClick={() => refetch()}
+              disabled={isRefreshing}
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </Button>

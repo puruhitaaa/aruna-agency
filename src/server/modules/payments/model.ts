@@ -18,7 +18,7 @@ export namespace PaymentModel {
     userId: t.String(),
     propertyId: t.Optional(t.String()),
     amount: t.String(), // Decimal
-    currency: t.Optional(t.String({ default: "USD" })),
+    currency: t.Optional(t.String({ default: "IDR" })),
     planType: t.Optional(PaymentPlanType),
     installmentsTotal: t.Optional(t.Integer()),
     installmentNumber: t.Optional(t.Integer()),
@@ -32,7 +32,7 @@ export namespace PaymentModel {
       status: PaymentStatus,
       gatewayTransactionId: t.String(),
       metadata: t.Any(),
-    }),
+    })
   )
 
   export const filterQuery = t.Composite([

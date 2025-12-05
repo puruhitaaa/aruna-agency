@@ -1,5 +1,6 @@
 "use client"
 
+import { useQuery } from "@tanstack/react-query"
 import {
   type ColumnFiltersState,
   getCoreRowModel,
@@ -12,16 +13,19 @@ import {
 } from "@tanstack/react-table"
 import { RefreshCw } from "lucide-react"
 import * as React from "react"
-import { toast } from "sonner"
 import { DataTable } from "@/components/data-table/data-table"
 import { Button } from "@/components/ui/button"
 import { api } from "@/lib/eden"
 
 import { type AuditLog, columns } from "./columns"
 
+// Query key factory for audit logs
+const auditLogsKeys = {
+  all: ["audit-logs"] as const,
+  lists: () => [...auditLogsKeys.all, "list"] as const,
+}
+
 export function AuditLogsDataTable() {
-  const [data, setData] = React.useState<AuditLog[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
   const [sorting, setSorting] = React.useState<SortingState>([
     { id: "createdAt", desc: true },
   ])
@@ -32,27 +36,22 @@ export function AuditLogsDataTable() {
     React.useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = React.useState({})
 
-  const fetchData = React.useCallback(async () => {
-    setIsLoading(true)
-    try {
+  // Query for fetching audit logs
+  const {
+    data = [],
+    isLoading,
+    isFetching,
+    refetch,
+  } = useQuery({
+    queryKey: auditLogsKeys.lists(),
+    queryFn: async () => {
       const response = await api["audit-logs"].get()
       if (response.error) {
-        toast.error("Failed to fetch audit logs")
-        console.error(response.error)
-        return
+        throw new Error("Failed to fetch audit logs")
       }
-      setData(response.data?.data ?? [])
-    } catch (error) {
-      toast.error("Failed to fetch audit logs")
-      console.error(error)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+      return (response.data?.data ?? []) as AuditLog[]
+    },
+  })
 
   const table = useReactTable({
     data,
@@ -73,6 +72,8 @@ export function AuditLogsDataTable() {
     },
   })
 
+  const isRefreshing = isLoading || isFetching
+
   return (
     <DataTable
       table={table}
@@ -82,11 +83,11 @@ export function AuditLogsDataTable() {
         <Button
           variant='outline'
           size='sm'
-          onClick={fetchData}
-          disabled={isLoading}
+          onClick={() => refetch()}
+          disabled={isRefreshing}
         >
           <RefreshCw
-            className={`mr-2 h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+            className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
           />
           Refresh
         </Button>
