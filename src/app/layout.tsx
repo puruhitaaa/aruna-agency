@@ -1,9 +1,10 @@
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/components/ThemeProvider"
-import { cn } from "@/lib/utils"
 import { NuqsAdapter } from "nuqs/adapters/next/app"
+import { ThemeProvider } from "@/components/ThemeProvider"
+import { Toaster } from "@/components/ui/sonner"
+import { cn } from "@/lib/utils"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +43,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             {children}
+            <Toaster richColors />
           </ThemeProvider>
         </NuqsAdapter>
       </body>
