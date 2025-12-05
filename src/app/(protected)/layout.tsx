@@ -13,7 +13,7 @@ export default function ProtectedLayout({ children }: { children: ReactNode }) {
         } as React.CSSProperties
       }
     >
-      <AppSidebar collapsible='icon' variant='sidebar' />
+      <AppSidebar collapsible='icon' variant='floating' />
 
       <SidebarInset>
         <SiteHeader />

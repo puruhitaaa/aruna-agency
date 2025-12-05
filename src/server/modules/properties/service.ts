@@ -1,6 +1,6 @@
+import { and, asc, count, desc, eq, gte, ilike, lte, sql } from "drizzle-orm"
 import { db } from "@/server/db"
 import { properties } from "@/server/db/schema"
-import { and, asc, count, desc, eq, gte, ilike, lte, sql } from "drizzle-orm"
 import { createPaginationResponse } from "../../utils/pagination"
 import type { PropertyModel } from "./model"
 

@@ -1,0 +1,379 @@
+"use client"
+
+import { zodResolver } from "@hookform/resolvers/zod"
+import * as React from "react"
+import { useForm } from "react-hook-form"
+import { toast } from "sonner"
+import { z } from "zod"
+import { DataTableFormDialog } from "@/components/common/data-table-form-dialog"
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { api } from "@/lib/eden"
+
+import type { Payment } from "./columns"
+
+const paymentFormSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  propertyId: z.string().optional(),
+  amount: z.string().min(1, "Amount is required"),
+  currency: z.string().optional(),
+  planType: z.enum(["full_payment", "installment"]).optional(),
+  installmentsTotal: z.coerce.number().optional(),
+  installmentNumber: z.coerce.number().optional(),
+  gateway: z.string().min(1, "Gateway is required"),
+  gatewayTransactionId: z.string().optional(),
+  status: z.enum(["pending", "completed", "failed", "refunded"]).optional(),
+})
+
+type PaymentFormValues = z.infer<typeof paymentFormSchema>
+
+interface PaymentFormDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  payment: Payment | null
+  onSuccess: () => void
+}
+
+export function PaymentFormDialog({
+  open,
+  onOpenChange,
+  payment,
+  onSuccess,
+}: PaymentFormDialogProps) {
+  const isEditing = !!payment
+
+  const form = useForm<PaymentFormValues>({
+    resolver: zodResolver(paymentFormSchema),
+    defaultValues: {
+      userId: "",
+      propertyId: "",
+      amount: "",
+      currency: "USD",
+      planType: "full_payment",
+      installmentsTotal: undefined,
+      installmentNumber: undefined,
+      gateway: "",
+      gatewayTransactionId: "",
+      status: "pending",
+    },
+  })
+
+  const planType = form.watch("planType")
+
+  React.useEffect(() => {
+    if (payment) {
+      form.reset({
+        userId: payment.userId,
+        propertyId: payment.propertyId ?? "",
+        amount: payment.amount,
+        currency: payment.currency,
+        planType: payment.planType,
+        installmentsTotal: payment.installmentsTotal ?? undefined,
+        installmentNumber: payment.installmentNumber ?? undefined,
+        gateway: payment.gateway,
+        gatewayTransactionId: payment.gatewayTransactionId ?? "",
+        status: payment.status,
+      })
+    } else {
+      form.reset({
+        userId: "",
+        propertyId: "",
+        amount: "",
+        currency: "USD",
+        planType: "full_payment",
+        installmentsTotal: undefined,
+        installmentNumber: undefined,
+        gateway: "",
+        gatewayTransactionId: "",
+        status: "pending",
+      })
+    }
+  }, [payment, form])
+
+  const onSubmit = async (data: PaymentFormValues) => {
+    try {
+      const payload = {
+        ...data,
+        propertyId: data.propertyId || undefined,
+        gatewayTransactionId: data.gatewayTransactionId || undefined,
+        installmentsTotal:
+          data.planType === "installment" ? data.installmentsTotal : undefined,
+        installmentNumber:
+          data.planType === "installment" ? data.installmentNumber : undefined,
+      }
+
+      if (isEditing && payment) {
+        const response = await api.payments({ id: payment.id }).patch({
+          status: data.status,
+          gatewayTransactionId: data.gatewayTransactionId || undefined,
+        })
+        if (response.error) {
+          toast.error("Failed to update payment")
+          return
+        }
+        toast.success("Payment updated successfully")
+      } else {
+        const response = await api.payments.post(payload)
+        if (response.error) {
+          toast.error("Failed to create payment")
+          return
+        }
+        toast.success("Payment recorded successfully")
+      }
+      onSuccess()
+    } catch (error) {
+      toast.error(
+        isEditing ? "Failed to update payment" : "Failed to create payment"
+      )
+      console.error(error)
+    }
+  }
+
+  return (
+    <DataTableFormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={isEditing ? "Edit Payment" : "Record Payment"}
+      description={
+        isEditing
+          ? "Update the payment status and details."
+          : "Fill in the details to record a new payment."
+      }
+      form={form}
+      onSubmit={onSubmit}
+      submitText={isEditing ? "Update" : "Record"}
+    >
+      <div className='grid gap-4'>
+        <div className='grid grid-cols-2 gap-4'>
+          <FormField
+            control={form.control}
+            name='userId'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>User ID</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder='User ID'
+                    {...field}
+                    disabled={isEditing}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='propertyId'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Property ID (Optional)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder='Property ID'
+                    {...field}
+                    disabled={isEditing}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className='grid grid-cols-2 gap-4'>
+          <FormField
+            control={form.control}
+            name='amount'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Amount</FormLabel>
+                <FormControl>
+                  <Input
+                    type='number'
+                    step='0.01'
+                    placeholder='1000.00'
+                    {...field}
+                    disabled={isEditing}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='currency'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Currency</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  disabled={isEditing}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder='Select currency' />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value='USD'>USD</SelectItem>
+                    <SelectItem value='EUR'>EUR</SelectItem>
+                    <SelectItem value='GBP'>GBP</SelectItem>
+                    <SelectItem value='IDR'>IDR</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <div className='grid grid-cols-2 gap-4'>
+          <FormField
+            control={form.control}
+            name='gateway'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Payment Gateway</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                  disabled={isEditing}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder='Select gateway' />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value='stripe'>Stripe</SelectItem>
+                    <SelectItem value='paypal'>PayPal</SelectItem>
+                    <SelectItem value='bank_transfer'>Bank Transfer</SelectItem>
+                    <SelectItem value='cash'>Cash</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name='status'
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Status</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  defaultValue={field.value}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder='Select status' />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value='pending'>Pending</SelectItem>
+                    <SelectItem value='completed'>Completed</SelectItem>
+                    <SelectItem value='failed'>Failed</SelectItem>
+                    <SelectItem value='refunded'>Refunded</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        <FormField
+          control={form.control}
+          name='planType'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Payment Plan</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                defaultValue={field.value}
+                disabled={isEditing}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select plan type' />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value='full_payment'>Full Payment</SelectItem>
+                  <SelectItem value='installment'>Installment</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {planType === "installment" && !isEditing && (
+          <div className='grid grid-cols-2 gap-4'>
+            <FormField
+              control={form.control}
+              name='installmentsTotal'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Total Installments</FormLabel>
+                  <FormControl>
+                    <Input type='number' placeholder='12' {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name='installmentNumber'
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Installment Number</FormLabel>
+                  <FormControl>
+                    <Input type='number' placeholder='1' {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        )}
+
+        <FormField
+          control={form.control}
+          name='gatewayTransactionId'
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Transaction ID (Optional)</FormLabel>
+              <FormControl>
+                <Input placeholder='Gateway transaction ID' {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      </div>
+    </DataTableFormDialog>
+  )
+}

@@ -1,9 +1,6 @@
-import * as React from "react"
-import {
-  flexRender,
-  Table as TableInstance,
-} from "@tanstack/react-table"
-
+import { flexRender, type Table as TableInstance } from "@tanstack/react-table"
+import type * as React from "react"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import {
   Table,
   TableBody,
@@ -14,7 +11,6 @@ import {
 } from "@/components/ui/table"
 import { DataTablePagination } from "./data-table-pagination"
 import { DataTableToolbar } from "./data-table-toolbar"
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 interface DataTableProps<TData> {
   table: TableInstance<TData>
@@ -32,15 +28,12 @@ export function DataTable<TData>({
   floatingBar,
 }: DataTableProps<TData>) {
   return (
-    <div className="space-y-4">
-      <DataTableToolbar
-        table={table}
-        searchKey={searchKey}
-      >
+    <div className='space-y-4'>
+      <DataTableToolbar table={table} searchKey={searchKey}>
         {toolbarActions}
       </DataTableToolbar>
-      <div className="rounded-md border bg-background">
-        <ScrollArea className="h-[calc(80vh-200px)]">
+      <div className='rounded-md border bg-background'>
+        <ScrollArea className='h-[calc(80vh-200px)]'>
           <Table>
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -81,7 +74,7 @@ export function DataTable<TData>({
                 <TableRow>
                   <TableCell
                     colSpan={columns.length}
-                    className="h-24 text-center"
+                    className='h-24 text-center'
                   >
                     No results.
                   </TableCell>
@@ -89,7 +82,7 @@ export function DataTable<TData>({
               )}
             </TableBody>
           </Table>
-          <ScrollBar orientation="horizontal" />
+          <ScrollBar orientation='horizontal' />
         </ScrollArea>
       </div>
       <DataTablePagination table={table} />

@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react"
 import * as React from "react"
 import {
   AlertDialog,
@@ -11,7 +12,6 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Trash2 } from "lucide-react"
 
 interface ConfirmDeleteDialogProps {
   trigger?: React.ReactNode
@@ -49,17 +49,26 @@ export function ConfirmDeleteDialog({
     }
   }
 
+  // Determine if we're in controlled mode
+  const isControlled = controlledOpen !== undefined
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
-      {trigger ? (
-        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      ) : (
-        <AlertDialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </AlertDialogTrigger>
-      )}
+      {/* Only render trigger in uncontrolled mode */}
+      {!isControlled &&
+        (trigger ? (
+          <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+        ) : (
+          <AlertDialogTrigger asChild>
+            <Button
+              variant='ghost'
+              size='icon'
+              className='h-8 w-8 text-destructive'
+            >
+              <Trash2 className='h-4 w-4' />
+            </Button>
+          </AlertDialogTrigger>
+        ))}
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -69,7 +78,7 @@ export function ConfirmDeleteDialog({
           <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
             disabled={isDeleting}
           >
             {isDeleting ? "Deleting..." : "Delete"}

@@ -26,6 +26,6 @@ export const config = {
      * - /properties (public properties page)
      */
     // "/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|properties|$).*)",
-    "/dashboard",
+    "/panel/:path*",
   ],
 }
