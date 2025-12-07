@@ -137,7 +137,8 @@ function generateStructuredData(
   property: ReturnType<typeof toDisplayProperty>,
   id: string
 ) {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://aruna-agency.com"
+  const baseUrl =
+    process.env.NEXT_PUBLIC_APP_URL || "https://aruna-agency.vercel.app"
 
   return {
     "@context": "https://schema.org",

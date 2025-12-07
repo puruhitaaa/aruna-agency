@@ -15,7 +15,7 @@ import * as schema from "../server/db/schema"
  * Usage: bun run db:seed
  */
 
-const OWNER_ID = "aMhvdXQhv4ANff2ZBUQMjHKITlt2D9dO"
+const OWNER_ID = "OkNua1mHIXd2vbnSZGYgH7OiJg0iFCtb"
 
 async function main() {
   console.log("🌱 Starting property seeder...")
