@@ -1,8 +1,12 @@
-"use client"
-
+import { redirect } from "next/navigation"
+import { getSession } from "@/server/better-auth/server"
 import { ToursDataTable } from "./_components/tours-data-table"
 
-export default function ToursPage() {
+export default async function ToursPage() {
+  const session = await getSession()
+
+  if (!session) redirect("/sign-in")
+
   return (
     <div className='px-4 lg:px-6'>
       <div className='mb-6'>

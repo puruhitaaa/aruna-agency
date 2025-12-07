@@ -1,8 +1,12 @@
-"use client"
-
+import { redirect } from "next/navigation"
+import { getSession } from "@/server/better-auth/server"
 import { PropertiesDataTable } from "./_components/properties-data-table"
 
-export default function PropertiesPage() {
+export default async function PropertiesPage() {
+  const session = await getSession()
+
+  if (!session) redirect("/sign-in")
+
   return (
     <div className='px-4 lg:px-6'>
       <div className='mb-6'>
