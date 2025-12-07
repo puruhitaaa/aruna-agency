@@ -2,12 +2,13 @@
 
 import { Bath, Bed, MapPin, Square } from "lucide-react"
 import Image from "next/image"
-import { cn } from "@/lib/utils"
-import { Property } from "@/lib/data"
 import { useRouter } from "next/navigation"
 
+import { cn } from "@/lib/utils"
+import type { DisplayProperty } from "@/types/property"
+
 interface PropertyCardProps {
-  property: Property
+  property: DisplayProperty
   className?: string
   aspectRatio?: string
 }
@@ -25,26 +26,26 @@ export function PropertyCard({
     <div className={cn("flex flex-col gap-4 group", className)}>
       <div
         className={cn(
-          "relative w-full rounded-[2rem] overflow-hidden",
+          "relative w-full rounded-4xl overflow-hidden",
           aspectRatio
         )}
       >
         <Image
-          src={property.image.src}
+          src={property.mainImage}
           alt={property.title}
           fill
           className='object-cover transition-transform duration-700 group-hover:scale-105'
         />
         <div className='absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300' />
 
-        {/* Details Overlay */}
         <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300'>
-          <div
+          <button
+            type='button'
             className='w-24 h-24 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white font-medium cursor-pointer transform scale-90 group-hover:scale-100 transition-transform duration-300'
             onClick={handleDetails}
           >
             Details
-          </div>
+          </button>
         </div>
       </div>
 

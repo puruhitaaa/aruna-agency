@@ -1,8 +1,6 @@
-import { SearchForm } from "@/components/home/SearchForm"
-import { PropertyCard } from "@/components/properties/property-card"
-import { Navbar } from "@/components/layout/Navbar"
 import { Footer } from "@/components/layout/Footer"
-import { properties } from "@/lib/data"
+import { Navbar } from "@/components/layout/Navbar"
+import { PropertiesGrid } from "./_components/properties-grid"
 
 export default function PropertiesPage() {
   return (
@@ -20,15 +18,7 @@ export default function PropertiesPage() {
           </p>
         </div>
 
-        <div className='flex justify-center w-full'>
-          <SearchForm />
-        </div>
-
-        <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 pt-8'>
-          {properties.map((property) => (
-            <PropertyCard key={property.id} property={property} />
-          ))}
-        </div>
+        <PropertiesGrid />
       </div>
 
       <Footer />

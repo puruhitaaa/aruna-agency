@@ -1,9 +1,10 @@
 import { Bath, Bed, Check, MapPin, Maximize } from "lucide-react"
-import { Property } from "@/lib/data"
+
 import { Separator } from "@/components/ui/separator"
+import type { DisplayProperty } from "@/types/property"
 
 interface PropertyInfoProps {
-  property: Property
+  property: DisplayProperty
 }
 
 export function PropertyInfo({ property }: PropertyInfoProps) {
@@ -21,7 +22,10 @@ export function PropertyInfo({ property }: PropertyInfoProps) {
             </h1>
           </div>
           <div className='text-2xl md:text-3xl font-bold text-primary'>
-            ${property.price.toLocaleString()}
+            {property.price.toLocaleString("id-ID", {
+              style: "currency",
+              currency: "IDR",
+            })}
           </div>
         </div>
 

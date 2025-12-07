@@ -1,13 +1,14 @@
 "use client"
 
-import {
-  MediaItem,
-  MediaLightbox,
-} from "@/components/properties/media-lightbox"
-import { PropertyImage } from "@/lib/data"
-import { ImageIcon, Play, Video } from "lucide-react"
+import { ImageIcon, Video } from "lucide-react"
 import Image from "next/image"
 import { useState } from "react"
+
+import {
+  type MediaItem,
+  MediaLightbox,
+} from "@/components/properties/media-lightbox"
+import type { PropertyImage } from "@/types/property"
 
 interface PropertyGalleryProps {
   images: PropertyImage[]
