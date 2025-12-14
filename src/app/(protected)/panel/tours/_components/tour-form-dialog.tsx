@@ -8,6 +8,11 @@ import { toast } from "sonner"
 import { z } from "zod"
 import { DataTableFormDialog } from "@/components/common/data-table-form-dialog"
 import {
+  AsyncSelect,
+  type AsyncSelectOption,
+  type PaginatedResponse,
+} from "@/components/ui/async-select"
+import {
   FormControl,
   FormField,
   FormItem,
@@ -24,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/eden"
+import { authClient } from "@/server/better-auth/client"
 
 import type { Tour } from "./columns"
 
@@ -58,6 +64,8 @@ export function TourFormDialog({
 }: TourFormDialogProps) {
   const isEditing = !!tour
   const queryClient = useQueryClient()
+  const { data: session } = authClient.useSession()
+  const isAdmin = session?.user?.role === "admin"
 
   const form = useForm<TourFormValues>({
     resolver: zodResolver(tourFormSchema),
@@ -92,6 +100,61 @@ export function TourFormDialog({
       })
     }
   }, [tour, form])
+
+  // Auto-set buyerId for non-admin users
+  React.useEffect(() => {
+    if (!isAdmin && session?.user?.id && !isEditing) {
+      form.setValue("buyerId", session.user.id)
+    }
+  }, [isAdmin, session?.user?.id, isEditing, form])
+
+  // Query function for fetching users
+  const fetchUsers = async (params: {
+    limit: number
+    offset: number
+    search: string
+  }): Promise<PaginatedResponse<AsyncSelectOption>> => {
+    const response = await api.users.get({
+      query: {
+        limit: params.limit,
+        offset: params.offset,
+        search: params.search || undefined,
+      },
+    })
+    if (response.error) throw new Error("Failed to fetch users")
+    return {
+      data: response.data.data.map((user) => ({
+        value: user.id,
+        label: user.name,
+        description: user.email,
+      })),
+      meta: response.data.meta,
+    }
+  }
+
+  // Query function for fetching properties
+  const fetchProperties = async (params: {
+    limit: number
+    offset: number
+    search: string
+  }): Promise<PaginatedResponse<AsyncSelectOption>> => {
+    const response = await api.properties.get({
+      query: {
+        limit: params.limit,
+        offset: params.offset,
+        search: params.search || undefined,
+      },
+    })
+    if (response.error) throw new Error("Failed to fetch properties")
+    return {
+      data: response.data.data.map((property) => ({
+        value: property.id,
+        label: property.title,
+        description: `${property.city}, ${property.state}`,
+      })),
+      meta: response.data.meta,
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: async (data: TourFormValues) => {
@@ -210,12 +273,17 @@ export function TourFormDialog({
             name='propertyId'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Property ID</FormLabel>
+                <FormLabel>Property</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder='Property ID'
-                    {...field}
+                  <AsyncSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder='Select property...'
+                    searchPlaceholder='Search properties...'
+                    emptyMessage='No properties found.'
                     disabled={isEditing}
+                    queryFn={fetchProperties}
+                    queryKey={["properties", "select"]}
                   />
                 </FormControl>
                 <FormMessage />
@@ -226,13 +294,18 @@ export function TourFormDialog({
             control={form.control}
             name='buyerId'
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Buyer ID</FormLabel>
+              <FormItem className={!isAdmin ? "hidden" : ""}>
+                <FormLabel>Buyer</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder='Buyer ID'
-                    {...field}
+                  <AsyncSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder='Select buyer...'
+                    searchPlaceholder='Search users...'
+                    emptyMessage='No users found.'
                     disabled={isEditing}
+                    queryFn={fetchUsers}
+                    queryKey={["users", "select"]}
                   />
                 </FormControl>
                 <FormMessage />
@@ -258,10 +331,18 @@ export function TourFormDialog({
             control={form.control}
             name='agentId'
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>Agent ID (Optional)</FormLabel>
+              <FormItem className={!isAdmin ? "hidden" : ""}>
+                <FormLabel>Agent (Optional)</FormLabel>
                 <FormControl>
-                  <Input placeholder='Agent ID' {...field} />
+                  <AsyncSelect
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder='Select agent...'
+                    searchPlaceholder='Search users...'
+                    emptyMessage='No users found.'
+                    queryFn={fetchUsers}
+                    queryKey={["users", "select"]}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>

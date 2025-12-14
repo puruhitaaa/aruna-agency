@@ -8,6 +8,11 @@ import { toast } from "sonner"
 import { z } from "zod"
 import { DataTableFormDialog } from "@/components/common/data-table-form-dialog"
 import {
+  AsyncSelect,
+  type AsyncSelectOption,
+  type PaginatedResponse,
+} from "@/components/ui/async-select"
+import {
   FormControl,
   FormField,
   FormItem,
@@ -24,6 +29,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { api } from "@/lib/eden"
+import { authClient } from "@/server/better-auth/client"
 
 import type { Property } from "./columns"
 
@@ -68,6 +74,8 @@ export function PropertyFormDialog({
 }: PropertyFormDialogProps) {
   const isEditing = !!property
   const queryClient = useQueryClient()
+  const { data: session } = authClient.useSession()
+  const isAdmin = session?.user?.role === "admin"
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
@@ -123,6 +131,37 @@ export function PropertyFormDialog({
       })
     }
   }, [property, form])
+
+  // Auto-set ownerId for non-admin users
+  React.useEffect(() => {
+    if (!isAdmin && session?.user?.id && !isEditing) {
+      form.setValue("ownerId", session.user.id)
+    }
+  }, [isAdmin, session?.user?.id, isEditing, form])
+
+  // Query function for fetching users with pagination
+  const fetchUsers = async (params: {
+    limit: number
+    offset: number
+    search: string
+  }): Promise<PaginatedResponse<AsyncSelectOption>> => {
+    const response = await api.users.get({
+      query: {
+        limit: params.limit,
+        offset: params.offset,
+        search: params.search || undefined,
+      },
+    })
+    if (response.error) throw new Error("Failed to fetch users")
+    return {
+      data: response.data.data.map((user) => ({
+        value: user.id,
+        label: user.name,
+        description: user.email,
+      })),
+      meta: response.data.meta,
+    }
+  }
 
   // Create mutation with optimistic update
   const createMutation = useMutation({
@@ -292,10 +331,19 @@ export function PropertyFormDialog({
           control={form.control}
           name='ownerId'
           render={({ field }) => (
-            <FormItem>
-              <FormLabel>Owner ID</FormLabel>
+            <FormItem className={!isAdmin ? "hidden" : ""}>
+              <FormLabel>Owner</FormLabel>
               <FormControl>
-                <Input placeholder='Owner user ID' {...field} />
+                <AsyncSelect
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder='Select owner...'
+                  searchPlaceholder='Search users...'
+                  emptyMessage='No users found.'
+                  disabled={isEditing}
+                  queryFn={fetchUsers}
+                  queryKey={["users", "select"]}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

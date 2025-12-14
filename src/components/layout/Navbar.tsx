@@ -5,13 +5,13 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetContent,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
+import { cn } from "@/lib/utils"
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -89,10 +89,10 @@ export function Navbar() {
       <div className='flex items-center gap-6'>
         <div className='hidden lg:flex items-center gap-6'>
           <Link
-            href='#'
+            href={`/sign-in/?callbackUrl=${pathname}`}
             className='text-sm font-medium hover:text-foreground transition-colors'
           >
-            Contact Us
+            Sign in
           </Link>
           <Button
             variant='outline'
@@ -177,11 +177,11 @@ export function Navbar() {
               <div className='h-px bg-border' />
               <div className='flex flex-col gap-4'>
                 <Link
-                  href='#'
+                  href={`/sign-in/?callbackUrl=${pathname}`}
                   onClick={() => setIsOpen(false)}
                   className='text-lg font-medium text-muted-foreground hover:text-foreground transition-colors'
                 >
-                  Contact Us
+                  Sign in
                 </Link>
                 <Button
                   className='w-full rounded-full font-medium'

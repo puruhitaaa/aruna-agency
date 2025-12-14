@@ -8,6 +8,11 @@ import { toast } from "sonner"
 import { z } from "zod"
 import { DataTableFormDialog } from "@/components/common/data-table-form-dialog"
 import {
+  AsyncSelect,
+  type AsyncSelectOption,
+  type PaginatedResponse,
+} from "@/components/ui/async-select"
+import {
   FormControl,
   FormField,
   FormItem,
@@ -89,6 +94,30 @@ export function NotificationFormDialog({
       })
     }
   }, [notification, form])
+
+  // Query function for fetching users
+  const fetchUsers = async (params: {
+    limit: number
+    offset: number
+    search: string
+  }): Promise<PaginatedResponse<AsyncSelectOption>> => {
+    const response = await api.users.get({
+      query: {
+        limit: params.limit,
+        offset: params.offset,
+        search: params.search || undefined,
+      },
+    })
+    if (response.error) throw new Error("Failed to fetch users")
+    return {
+      data: response.data.data.map((user) => ({
+        value: user.id,
+        label: user.name,
+        description: user.email,
+      })),
+      meta: response.data.meta,
+    }
+  }
 
   // Create mutation with optimistic update
   const createMutation = useMutation({
@@ -197,13 +226,15 @@ export function NotificationFormDialog({
     },
   })
 
-  // Handle toggle for editing
+  // Handle toggle for editing - using ref to avoid dependency issues
+  const toggleRef = React.useRef(toggleReadMutation.mutate)
+  toggleRef.current = toggleReadMutation.mutate
+
   React.useEffect(() => {
     if (isEditing && open && notification) {
-      toggleReadMutation.mutate(notification)
+      toggleRef.current(notification)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditing, open])
+  }, [isEditing, open, notification])
 
   const onSubmit = async (data: NotificationFormValues) => {
     createMutation.mutate(data)
@@ -233,9 +264,17 @@ export function NotificationFormDialog({
           name='userId'
           render={({ field }) => (
             <FormItem>
-              <FormLabel>User ID</FormLabel>
+              <FormLabel>User</FormLabel>
               <FormControl>
-                <Input placeholder='User ID' {...field} />
+                <AsyncSelect
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  placeholder='Select user...'
+                  searchPlaceholder='Search users...'
+                  emptyMessage='No users found.'
+                  queryFn={fetchUsers}
+                  queryKey={["users", "select"]}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>

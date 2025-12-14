@@ -1,7 +1,9 @@
 "use client"
 
-import { ChevronLeft, ChevronRight, MapPin } from "lucide-react"
+import { useQuery } from "@tanstack/react-query"
+import { ChevronLeft, ChevronRight, Loader2, MapPin } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import {
@@ -10,72 +12,111 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel"
+import { api } from "@/lib/eden"
 import { cn } from "@/lib/utils"
+import { type DisplayProperty, toDisplayProperty } from "@/types/property"
 
-interface Property {
-  id: string
-  title: string
-  location: string
-  description: string
-  image: string
+// Query key factory for featured properties
+const featuredPropertiesKeys = {
+  all: ["featured-properties"] as const,
+  list: () => [...featuredPropertiesKeys.all, "list"] as const,
 }
 
-const properties: Property[] = [
-  {
-    id: "1",
-    title: "Griya Asri Tamansari",
-    location: "Sleman, Yogyakarta",
-    description:
-      "Nestled in the serene landscapes of Sleman, Taman Harmoni Village offers a perfect blend of modern living and natural tranquility.",
-    image:
-      "https://images.unsplash.com/photo-1600596542815-2495db9dc2c3?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "2",
-    title: "Permata Indah Residence",
-    location: "Bantul, Yogyakarta",
-    description:
-      "Experience luxury living with our premium residences in Bantul, featuring state-of-the-art amenities and breathtaking views.",
-    image:
-      "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "3",
-    title: "Skyline Apartments",
-    location: "Depok, Sleman",
-    description:
-      "Modern apartments in the heart of the city, perfect for young professionals seeking convenience and style.",
-    image:
-      "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&w=2070&auto=format&fit=crop",
-  },
-  {
-    id: "4",
-    title: "Villa Kusuma",
-    location: "Kaliurang, Yogyakarta",
-    description:
-      "A private retreat in the cool hills of Kaliurang, offering exclusive villas with private pools and gardens.",
-    image:
-      "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?q=80&w=2070&auto=format&fit=crop",
-  },
-]
-
 export function FeaturedProperties() {
-  const [api, setApi] = React.useState<CarouselApi>()
+  const [carouselApi, setCarouselApi] = React.useState<CarouselApi>()
   const [current, setCurrent] = React.useState(0)
 
+  const {
+    data: properties = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: featuredPropertiesKeys.list(),
+    queryFn: async () => {
+      const response = await api.properties.get({
+        query: {
+          status: "published",
+          limit: 4,
+        },
+      })
+      if (response.error) {
+        throw new Error("Failed to fetch featured properties")
+      }
+      // Transform API properties to display format
+      return (response.data?.data ?? []).map(toDisplayProperty)
+    },
+  })
+
   React.useEffect(() => {
-    if (!api) {
+    if (!carouselApi) {
       return
     }
 
-    setCurrent(api.selectedScrollSnap())
+    setCurrent(carouselApi.selectedScrollSnap())
 
-    api.on("select", () => {
-      setCurrent(api.selectedScrollSnap())
+    carouselApi.on("select", () => {
+      setCurrent(carouselApi.selectedScrollSnap())
     })
-  }, [api])
+  }, [carouselApi])
 
   const activeProperty = properties[current]
+
+  if (isLoading) {
+    return (
+      <section className='py-12 md:py-20 max-w-[1400px] mx-auto w-full px-4 md:px-6 flex flex-col gap-12'>
+        <div className='text-center space-y-4'>
+          <h2 className='text-4xl md:text-5xl font-semibold tracking-tight'>
+            Explore Our Property Listings
+          </h2>
+          <p className='text-muted-foreground max-w-2xl mx-auto'>
+            From cozy apartments to spacious family homes, our diverse listings
+            cater to various needs and preferences.
+          </p>
+        </div>
+        <div className='flex items-center justify-center py-20'>
+          <Loader2 className='h-8 w-8 animate-spin text-muted-foreground' />
+        </div>
+      </section>
+    )
+  }
+
+  if (error) {
+    return (
+      <section className='py-12 md:py-20 max-w-[1400px] mx-auto w-full px-4 md:px-6 flex flex-col gap-12'>
+        <div className='text-center space-y-4'>
+          <h2 className='text-4xl md:text-5xl font-semibold tracking-tight'>
+            Explore Our Property Listings
+          </h2>
+          <p className='text-muted-foreground max-w-2xl mx-auto'>
+            From cozy apartments to spacious family homes, our diverse listings
+            cater to various needs and preferences.
+          </p>
+        </div>
+        <div className='flex items-center justify-center py-20'>
+          <p className='text-destructive'>Failed to load featured properties</p>
+        </div>
+      </section>
+    )
+  }
+
+  if (properties.length === 0) {
+    return (
+      <section className='py-12 md:py-20 max-w-[1400px] mx-auto w-full px-4 md:px-6 flex flex-col gap-12'>
+        <div className='text-center space-y-4'>
+          <h2 className='text-4xl md:text-5xl font-semibold tracking-tight'>
+            Explore Our Property Listings
+          </h2>
+          <p className='text-muted-foreground max-w-2xl mx-auto'>
+            From cozy apartments to spacious family homes, our diverse listings
+            cater to various needs and preferences.
+          </p>
+        </div>
+        <div className='flex items-center justify-center py-20'>
+          <p className='text-muted-foreground'>No featured properties found</p>
+        </div>
+      </section>
+    )
+  }
 
   return (
     <section className='py-12 md:py-20 max-w-[1400px] mx-auto w-full px-4 md:px-6 flex flex-col gap-12'>
@@ -98,7 +139,7 @@ export function FeaturedProperties() {
 
       <div className='relative'>
         <Carousel
-          setApi={setApi}
+          setApi={setCarouselApi}
           opts={{
             align: "center",
             loop: true,
@@ -120,7 +161,7 @@ export function FeaturedProperties() {
                   )}
                 >
                   <Image
-                    src={property.image}
+                    src={property.mainImage}
                     alt={property.title}
                     fill
                     className='object-cover'
@@ -134,9 +175,11 @@ export function FeaturedProperties() {
                       index === current && "group-hover:opacity-100"
                     )}
                   >
-                    <div className='w-24 h-24 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white font-medium'>
-                      Details
-                    </div>
+                    <Link href={`/properties/${property.id}`}>
+                      <div className='w-24 h-24 bg-[#1A1A1A] rounded-full flex items-center justify-center text-white font-medium'>
+                        Details
+                      </div>
+                    </Link>
                   </div>
                 </div>
               </CarouselItem>
@@ -164,7 +207,7 @@ export function FeaturedProperties() {
             variant='outline'
             size='icon'
             className='rounded-full w-12 h-12 border-border/50 hover:bg-[#1A1A1A] hover:text-white transition-colors'
-            onClick={() => api?.scrollPrev()}
+            onClick={() => carouselApi?.scrollPrev()}
           >
             <ChevronLeft className='w-5 h-5' />
             <span className='sr-only'>Previous</span>
@@ -173,7 +216,7 @@ export function FeaturedProperties() {
             variant='outline'
             size='icon'
             className='rounded-full w-12 h-12 border-border/50 hover:bg-[#1A1A1A] hover:text-white transition-colors'
-            onClick={() => api?.scrollNext()}
+            onClick={() => carouselApi?.scrollNext()}
           >
             <ChevronRight className='w-5 h-5' />
             <span className='sr-only'>Next</span>

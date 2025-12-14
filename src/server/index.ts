@@ -6,6 +6,7 @@ import { notificationsController } from "./modules/notifications"
 import { paymentsController } from "./modules/payments"
 import { propertiesController } from "./modules/properties"
 import { toursController } from "./modules/tours"
+import { usersController } from "./modules/users"
 
 export const app = new Elysia({ prefix: "/api" })
   .use(propertiesController)
@@ -14,6 +15,7 @@ export const app = new Elysia({ prefix: "/api" })
   .use(paymentsController)
   .use(notificationsController)
   .use(auditLogsController)
+  .use(usersController)
   .mount(auth.handler)
 
 export type App = typeof app // <--- Export type for Client

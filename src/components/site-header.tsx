@@ -11,7 +11,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { Button } from "@/components/ui/button"
+
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 
@@ -36,10 +36,35 @@ function prettySegment(segment: string) {
 export function SiteHeader() {
   const pathname = usePathname() || "/"
   const segments = pathname.split("/").filter(Boolean)
-  const crumbs = [
-    "/",
-    ...segments.map((_, i) => `/${segments.slice(0, i + 1).join("/")}`),
+
+  // Build crumbs: start with Dashboard (/panel/dashboard), then remaining segments after "panel"
+  const crumbs: { path: string; label: string; isLink: boolean }[] = [
+    { path: "/panel/dashboard", label: "Dashboard", isLink: true },
   ]
+
+  // Add remaining segments (skip "panel" as it's already represented by Dashboard)
+  segments.forEach((segment, i) => {
+    if (segment === "panel") {
+      // "Panel" should be text only, not a link
+      crumbs.push({ path: "/panel", label: "Panel", isLink: false })
+    } else {
+      const path = `/${segments.slice(0, i + 1).join("/")}`
+      crumbs.push({ path, label: prettySegment(segment), isLink: true })
+    }
+  })
+
+  // Remove duplicate Dashboard entries and filter logic
+  // If current path is /panel/dashboard, we only show Dashboard
+  // If current path is /panel/something, we show: Dashboard > Panel > Something
+  const filteredCrumbs = crumbs.filter((crumb, idx) => {
+    // Always keep the first Dashboard
+    if (idx === 0) return true
+    // Remove "Panel" if we're on /panel/dashboard (would be redundant)
+    if (crumb.label === "Panel" && pathname === "/panel/dashboard") return false
+    // Remove duplicate Dashboard from the segments
+    if (crumb.label === "Dashboard" && idx > 0) return false
+    return true
+  })
 
   return (
     <header className='flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)'>
@@ -54,25 +79,27 @@ export function SiteHeader() {
         <div className='min-w-0 flex-auto'>
           <Breadcrumb>
             <BreadcrumbList>
-              {crumbs.map((path, idx) => {
-                const label =
-                  idx === 0
-                    ? "Home"
-                    : prettySegment(path.split("/").pop() ?? "")
-                const isLast = idx === crumbs.length - 1
+              {filteredCrumbs.map((crumb, idx) => {
+                const isLast = idx === filteredCrumbs.length - 1
 
                 return (
-                  <React.Fragment key={path}>
+                  <React.Fragment key={`${crumb.path}-${crumb.label}`}>
                     <BreadcrumbItem>
                       {isLast ? (
-                        <BreadcrumbPage>{label}</BreadcrumbPage>
-                      ) : (
+                        <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+                      ) : crumb.isLink ? (
                         <BreadcrumbLink asChild>
-                          <Link href={path}>{label}</Link>
+                          <Link href={crumb.path}>{crumb.label}</Link>
                         </BreadcrumbLink>
+                      ) : (
+                        <span className='text-muted-foreground'>
+                          {crumb.label}
+                        </span>
                       )}
                     </BreadcrumbItem>
-                    {idx !== crumbs.length - 1 && <BreadcrumbSeparator />}
+                    {idx !== filteredCrumbs.length - 1 && (
+                      <BreadcrumbSeparator />
+                    )}
                   </React.Fragment>
                 )
               })}

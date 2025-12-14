@@ -8,6 +8,11 @@ import { toast } from "sonner"
 import { z } from "zod"
 import { DataTableFormDialog } from "@/components/common/data-table-form-dialog"
 import {
+  AsyncSelect,
+  type AsyncSelectOption,
+  type PaginatedResponse,
+} from "@/components/ui/async-select"
+import {
   FormControl,
   FormField,
   FormItem,
@@ -23,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { api } from "@/lib/eden"
+import { authClient } from "@/server/better-auth/client"
 
 import type { Payment } from "./columns"
 
@@ -61,6 +67,8 @@ export function PaymentFormDialog({
 }: PaymentFormDialogProps) {
   const isEditing = !!payment
   const queryClient = useQueryClient()
+  const { data: session } = authClient.useSession()
+  const isAdmin = session?.user?.role === "admin"
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
@@ -109,6 +117,61 @@ export function PaymentFormDialog({
       })
     }
   }, [payment, form])
+
+  // Auto-set userId for non-admin users
+  React.useEffect(() => {
+    if (!isAdmin && session?.user?.id && !isEditing) {
+      form.setValue("userId", session.user.id)
+    }
+  }, [isAdmin, session?.user?.id, isEditing, form])
+
+  // Query function for fetching users
+  const fetchUsers = async (params: {
+    limit: number
+    offset: number
+    search: string
+  }): Promise<PaginatedResponse<AsyncSelectOption>> => {
+    const response = await api.users.get({
+      query: {
+        limit: params.limit,
+        offset: params.offset,
+        search: params.search || undefined,
+      },
+    })
+    if (response.error) throw new Error("Failed to fetch users")
+    return {
+      data: response.data.data.map((user) => ({
+        value: user.id,
+        label: user.name,
+        description: user.email,
+      })),
+      meta: response.data.meta,
+    }
+  }
+
+  // Query function for fetching properties
+  const fetchProperties = async (params: {
+    limit: number
+    offset: number
+    search: string
+  }): Promise<PaginatedResponse<AsyncSelectOption>> => {
+    const response = await api.properties.get({
+      query: {
+        limit: params.limit,
+        offset: params.offset,
+        search: params.search || undefined,
+      },
+    })
+    if (response.error) throw new Error("Failed to fetch properties")
+    return {
+      data: response.data.data.map((property) => ({
+        value: property.id,
+        label: property.title,
+        description: `${property.city}, ${property.state}`,
+      })),
+      meta: response.data.meta,
+    }
+  }
 
   const createMutation = useMutation({
     mutationFn: async (data: PaymentFormValues) => {
@@ -241,13 +304,18 @@ export function PaymentFormDialog({
             control={form.control}
             name='userId'
             render={({ field }) => (
-              <FormItem>
-                <FormLabel>User ID</FormLabel>
+              <FormItem className={!isAdmin ? "hidden" : ""}>
+                <FormLabel>User</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder='User ID'
-                    {...field}
+                  <AsyncSelect
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder='Select user...'
+                    searchPlaceholder='Search users...'
+                    emptyMessage='No users found.'
                     disabled={isEditing}
+                    queryFn={fetchUsers}
+                    queryKey={["users", "select"]}
                   />
                 </FormControl>
                 <FormMessage />
@@ -259,12 +327,17 @@ export function PaymentFormDialog({
             name='propertyId'
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Property ID (Optional)</FormLabel>
+                <FormLabel>Property (Optional)</FormLabel>
                 <FormControl>
-                  <Input
-                    placeholder='Property ID'
-                    {...field}
+                  <AsyncSelect
+                    value={field.value ?? ""}
+                    onValueChange={field.onChange}
+                    placeholder='Select property...'
+                    searchPlaceholder='Search properties...'
+                    emptyMessage='No properties found.'
                     disabled={isEditing}
+                    queryFn={fetchProperties}
+                    queryKey={["properties", "select"]}
                   />
                 </FormControl>
                 <FormMessage />

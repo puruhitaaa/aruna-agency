@@ -6,16 +6,13 @@ import {
   IconCalendarEvent,
   IconCreditCard,
   IconDashboard,
-  IconHelp,
   IconHistory,
-  IconSearch,
-  IconSettings,
   IconUserCheck,
 } from "@tabler/icons-react"
 import Link from "next/link"
 import type * as React from "react"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
+// import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import {
   Sidebar,
@@ -26,65 +23,72 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { authClient } from "@/server/better-auth/client"
 
-const data = {
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/panel/dashboard",
-      icon: IconDashboard,
-    },
-    {
-      title: "Properties",
-      url: "/panel/properties",
-      icon: IconBuildingEstate,
-    },
-    {
-      title: "Landlords",
-      url: "/panel/landlords",
-      icon: IconUserCheck,
-    },
-    {
-      title: "Tours",
-      url: "/panel/tours",
-      icon: IconCalendarEvent,
-    },
-    {
-      title: "Payments",
-      url: "/panel/payments",
-      icon: IconCreditCard,
-    },
-    {
-      title: "Notifications",
-      url: "/panel/notifications",
-      icon: IconBell,
-    },
-    {
-      title: "Audit Logs",
-      url: "/panel/audit-logs",
-      icon: IconHistory,
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "/dashboard/settings",
-      icon: IconSettings,
-    },
-    {
-      title: "Get Help",
-      url: "/help",
-      icon: IconHelp,
-    },
-    {
-      title: "Search",
-      url: "/search",
-      icon: IconSearch,
-    },
-  ],
-}
+const navItems = [
+  {
+    title: "Dashboard",
+    url: "/panel/dashboard",
+    icon: IconDashboard,
+  },
+  {
+    title: "Properties",
+    url: "/panel/properties",
+    icon: IconBuildingEstate,
+  },
+  {
+    title: "Landlords",
+    url: "/panel/landlords",
+    icon: IconUserCheck,
+    adminOnly: true,
+  },
+  {
+    title: "Tours",
+    url: "/panel/tours",
+    icon: IconCalendarEvent,
+  },
+  {
+    title: "Payments",
+    url: "/panel/payments",
+    icon: IconCreditCard,
+  },
+  {
+    title: "Notifications",
+    url: "/panel/notifications",
+    icon: IconBell,
+  },
+  {
+    title: "Audit Logs",
+    url: "/panel/audit-logs",
+    icon: IconHistory,
+    adminOnly: true,
+  },
+]
+
+// const navSecondary = [
+//   {
+//     title: "Settings",
+//     url: "/dashboard/settings",
+//     icon: IconSettings,
+//   },
+//   {
+//     title: "Get Help",
+//     url: "/help",
+//     icon: IconHelp,
+//   },
+//   {
+//     title: "Search",
+//     url: "/search",
+//     icon: IconSearch,
+//   },
+// ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { data: session } = authClient.useSession()
+  const isAdmin = session?.user?.role === "admin"
+
+  const filteredNavItems = navItems.filter((item) => !item.adminOnly || isAdmin)
+
   return (
     <Sidebar collapsible='icon' {...props}>
       <SidebarHeader>
@@ -103,8 +107,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        {/* <NavSecondary items={data.navSecondary} className='mt-auto' /> */}
+        <NavMain items={filteredNavItems} />
+        {/* <NavSecondary items={navSecondary} className='mt-auto' /> */}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
